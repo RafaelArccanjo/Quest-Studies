@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
   CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, X, Eye, Trash2, Settings,
-  Coins, Crown, Scroll, Sparkles
+  Crown, Scroll, Sparkles
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from './supabase';
@@ -12,7 +12,105 @@ import { cbTasksPages } from './data/cbTasksPages';
 import { vnTasksPages } from './data/vnTasksPages';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { motion, AnimatePresence } from 'motion/react';
-import { DragonIcon, KnightIcon, CrestLogo } from './components/Icons';
+import { DragonIcon, KnightIcon, CrestLogo, BabyDragonIcon } from './components/Icons';
+
+// --- MASCOT COMPONENT ---
+const DragonMascot = () => {
+  const [pos, setPos] = useState({ x: 50, y: 80 });
+  const [isBreathingFire, setIsBreathingFire] = useState(false);
+  const [isBeingPetted, setIsBeingPetted] = useState(false);
+  const [direction, setDirection] = useState(1); // 1 for right, -1 for left
+
+  useEffect(() => {
+    const moveInterval = setInterval(() => {
+      if (isBeingPetted || isBreathingFire) return;
+
+      setPos(prev => {
+        const nextX = Math.max(10, Math.min(90, prev.x + (Math.random() - 0.5) * 20));
+        const nextY = Math.max(10, Math.min(90, prev.y + (Math.random() - 0.5) * 20));
+        if (nextX > prev.x) setDirection(1);
+        else if (nextX < prev.x) setDirection(-1);
+        return { x: nextX, y: nextY };
+      });
+
+      // Occasionally breathe fire
+      if (Math.random() > 0.7) {
+        setIsBreathingFire(true);
+        setTimeout(() => setIsBreathingFire(false), 2000);
+      }
+    }, 3000);
+
+    return () => clearInterval(moveInterval);
+  }, [isBeingPetted, isBreathingFire]);
+
+  const handlePet = () => {
+    setIsBeingPetted(true);
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2014/2014-preview.mp3');
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+    setTimeout(() => setIsBeingPetted(false), 2000);
+  };
+
+  return (
+    <motion.div
+      className="fixed z-[5000] cursor-pointer pointer-events-auto"
+      animate={{ 
+        left: `${pos.x}%`, 
+        top: `${pos.y}%`,
+        scale: isBeingPetted ? 1.2 : 1
+      }}
+      transition={{ duration: 2, ease: "easeInOut" }}
+      onClick={handlePet}
+    >
+      <div className="relative group">
+        {/* Fire Breath Effect */}
+        <AnimatePresence>
+          {isBreathingFire && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [1, 1.5, 1], opacity: [0, 1, 0] }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="absolute -left-8 top-4 w-12 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full blur-sm"
+              style={{ transform: direction === 1 ? 'scaleX(1)' : 'scaleX(-1)' }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Petting Hearts */}
+        <AnimatePresence>
+          {isBeingPetted && (
+            <motion.div
+              initial={{ y: 0, opacity: 0 }}
+              animate={{ y: -40, opacity: [0, 1, 0] }}
+              className="absolute -top-8 left-4 text-red-500"
+            >
+              ❤️
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          animate={{ 
+            rotate: isBeingPetted ? [0, -10, 10, 0] : [0, 2, -2, 0],
+            y: [0, -5, 0]
+          }}
+          transition={{ 
+            repeat: Infinity, 
+            duration: isBeingPetted ? 0.3 : 2 
+          }}
+          style={{ transform: `scaleX(${direction})` }}
+        >
+          <BabyDragonIcon className="w-16 h-16 text-[#84cc16] drop-shadow-[0_0_15px_rgba(132,204,22,0.6)]" />
+        </motion.div>
+
+        {/* Interaction Prompt */}
+        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
+          Me dê carinho!
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -136,7 +234,9 @@ const subjectTasks: Record<string, { id: string, title: string }[]> = {
 // --- REUSABLE COMPONENTS ---
 const Panel = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
   <div className={`medieval-panel rounded-sm ${className}`}>
-    {children}
+    <div className="medieval-panel-inner h-full">
+      {children}
+    </div>
   </div>
 );
 
@@ -180,8 +280,8 @@ export const CONTESTS = [
 ];
 
 const MedievalRain = () => {
-  const items = [Coins, Swords, Shield, Crown, Scroll, Sparkles];
-  const drops = Array.from({ length: 30 }).map((_, i) => {
+  const items = [Swords, Shield, Crown, Scroll, Sparkles];
+  const drops = Array.from({ length: 40 }).map((_, i) => {
     const Icon = items[Math.floor(Math.random() * items.length)];
     return {
       id: i,
@@ -235,23 +335,36 @@ const DragonEncounter = () => {
       <motion.div
         initial={{ x: '100vw', y: '-20vh', scale: 0.5, opacity: 0 }}
         animate={{ 
-          x: ['100vw', '20vw', '20vw', '-100vw'], 
+          x: ['100vw', '10vw', '10vw', '-100vw'], 
           y: ['-20vh', '0vh', '0vh', '-50vh'],
-          scale: [0.5, 2.5, 2.5, 1],
-          opacity: [0, 1, 1, 0]
+          scale: [0.5, 3, 3, 1],
+          opacity: [0, 1, 1, 0],
+          rotate: [0, -10, 10, -10, 10, 0] // Aggressive shake
         }}
-        transition={{ duration: 7, ease: "easeInOut" }}
+        transition={{ 
+          duration: 6, 
+          ease: "easeInOut",
+          rotate: { repeat: Infinity, duration: 0.15 } // Very fast shake
+        }}
         className="absolute left-1/2 top-1/2 -translate-y-1/2 flex items-center"
       >
-        {/* Fire Breath */}
+        {/* Left Head Fire Breath */}
         <motion.div 
           initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: [0, 0, 1, 1, 0], opacity: [0, 0, 1, 1, 0] }}
-          transition={{ duration: 7, ease: "easeInOut", times: [0, 0.2, 0.25, 0.4, 0.45] }}
-          className="absolute right-[80%] h-32 w-96 bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-md rounded-full"
-          style={{ filter: 'drop-shadow(0 0 20px rgba(255,100,0,0.8))' }}
+          animate={{ scaleX: [0, 0, 2, 2, 0], opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 6, ease: "easeInOut", times: [0, 0.2, 0.25, 0.4, 0.45] }}
+          className="absolute right-[80%] top-[20%] h-48 w-[500px] bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-2xl rounded-full"
+          style={{ filter: 'drop-shadow(0 0 60px rgba(255,0,0,1))', transform: 'rotate(-15deg)' }}
         />
-        <DragonIcon className="w-48 h-48 text-green-800 drop-shadow-[0_0_30px_rgba(58,90,64,0.8)]" />
+        {/* Right Head Fire Breath */}
+        <motion.div 
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: [0, 0, 2, 2, 0], opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 6, ease: "easeInOut", times: [0, 0.22, 0.27, 0.42, 0.47] }}
+          className="absolute right-[80%] top-[50%] h-48 w-[500px] bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-2xl rounded-full"
+          style={{ filter: 'drop-shadow(0 0 60px rgba(255,0,0,1))', transform: 'rotate(10deg)' }}
+        />
+        <DragonIcon className="w-80 h-80 text-red-700 drop-shadow-[0_0_50px_rgba(185,28,28,0.8)]" />
       </motion.div>
 
       {/* Knight */}
@@ -290,36 +403,46 @@ export default function App() {
   const triggerDragonEncounter = () => {
     setShowDragon(true);
     
-    // Dragon Roar
-    const roar = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
-    roar.volume = 0.8;
-    roar.play().catch(e => console.log("Audio play failed", e));
-    
-    // Knight Sword Clash (delayed)
-    setTimeout(() => {
-      const clash = new Audio('https://assets.mixkit.co/active_storage/sfx/2771/2771-preview.mp3');
-      clash.volume = 0.6;
-      clash.play().catch(e => console.log("Audio play failed", e));
-    }, 2500);
+    // Angry Dragon Roar (Layered for intensity)
+    const roar1 = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
+    const roar2 = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
+    roar1.volume = 0.9;
+    roar2.volume = 0.7;
+    roar2.playbackRate = 0.8; // Deeper roar
+    roar1.play().catch(e => console.log("Audio play failed", e));
+    setTimeout(() => roar2.play().catch(e => console.log("Audio play failed", e)), 200);
 
-    setTimeout(() => setShowDragon(false), 7000);
+    // Intense Medieval Battle Music
+    const music = new Audio('https://assets.mixkit.co/active_storage/sfx/1997/1997-preview.mp3');
+    music.volume = 0.8;
+    music.play().catch(e => console.log("Audio play failed", e));
+    
+    // Knight Sword Clash & Shield Impact
+    setTimeout(() => {
+      const clash = new Audio('https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3');
+      clash.volume = 0.9;
+      clash.play().catch(e => console.log("Audio play failed", e));
+    }, 1500);
+
+    setTimeout(() => setShowDragon(false), 6000);
   };
 
   const triggerMedievalEffects = () => {
-    // Medieval flute/harp sound - Always play when triggered
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3');
+    // Upbeat Medieval Fanfare (Animated Music)
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2012/2012-preview.mp3');
     audio.volume = 0.5;
     audio.play().catch(e => console.log("Audio play failed", e));
     
     // Rain happens with 40% probability
     if (Math.random() < 0.4) {
       setShowRain(true);
-      setTimeout(() => setShowRain(false), 5000);
+      setTimeout(() => setShowRain(false), 10000);
     }
   };
 
   const playClickSound = () => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    // Solid wooden/metallic click
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
     audio.volume = 0.4;
     audio.play().catch(e => console.log("Audio play failed", e));
   };
@@ -686,8 +809,8 @@ export default function App() {
         if (error) throw error;
         setCompletions(prev => ({ ...prev, [`${dateStr}_Flashcards`]: true }));
         
-        // Minimalist flashcard sound (a soft page turn / click)
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+        // Medieval flashcard sound (sword sheathe)
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/1197/1197-preview.mp3');
         audio.volume = 0.5;
         audio.play().catch(e => console.log("Audio play failed", e));
       }
@@ -938,8 +1061,8 @@ export default function App() {
       subject: row.days[todayDayOfWeek],
       time: row.time,
       completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
-    }));
-    // .filter(mission => !completedSubjects.includes(mission.subject));
+    }))
+    .filter(mission => !completedSubjects.includes(mission.subject));
 
   const completedMissions = currentWeekCycles;
   const totalMissions = totalWeeklyCycles;
@@ -967,7 +1090,11 @@ export default function App() {
   });
 
   const dynamicBattleTable = Object.keys(battleStats)
-    // .filter(subject => !completedSubjects.includes(subject))
+    .filter(subject => {
+      const stats = battleStats[subject];
+      const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+      return progress < 100 && !completedSubjects.includes(subject);
+    })
     .map(subject => {
       const stats = battleStats[subject];
       const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
@@ -988,9 +1115,11 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white">
+    <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white relative">
+      <div className="fixed inset-0 pointer-events-none z-[50] shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]" />
       {showRain && <MedievalRain />}
       {showDragon && <DragonEncounter />}
+      <DragonMascot />
       
       {isDbSetupError && (
         <div className="max-w-6xl mx-auto mb-6 p-4 bg-green-900/80 border-2 border-quest-red text-white rounded-lg shadow-[0_0_20px_rgba(58,90,64,0.5)] flex flex-col items-center gap-3 text-center">

@@ -17,7 +17,11 @@
 
 body {
   background-color: var(--color-quest-bg);
-  background-image: radial-gradient(circle at center, #141d14 0%, #0a0f0a 100%);
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(20, 29, 20, 0.4) 0%, rgba(10, 15, 10, 1) 100%),
+    url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='%23141d14' stroke-width='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4v-4H4v4H0v2h4v4h2v-4h4v-2H6zM36 4v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM66 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 64v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 64v-4H4v4H0v2h4v4h2v-4h4v-2H6zM66 4v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM33 50v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 50v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM3 20v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM33 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM63 50v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM33 80v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 80v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM63 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-attachment: fixed;
   color: var(--color-quest-text);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -42,17 +46,66 @@ body {
 /* Medieval Panel Styles */
 .medieval-panel {
   background-color: var(--color-quest-panel);
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
   border: 2px solid var(--color-quest-gold-dark);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.5);
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 10px 30px rgba(0,0,0,0.7);
   position: relative;
 }
 
 .medieval-panel::before {
   content: '';
   position: absolute;
-  top: 2px; left: 2px; right: 2px; bottom: 2px;
-  border: 1px solid rgba(184, 155, 94, 0.2);
+  top: 0; left: 0; width: 15px; height: 15px;
+  border-top: 2px solid var(--color-quest-gold);
+  border-left: 2px solid var(--color-quest-gold);
   pointer-events: none;
+  z-index: 10;
+  box-shadow: -2px -2px 5px rgba(184, 155, 94, 0.2);
+}
+
+.medieval-panel::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0; width: 15px; height: 15px;
+  border-bottom: 2px solid var(--color-quest-gold);
+  border-right: 2px solid var(--color-quest-gold);
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 2px 2px 5px rgba(184, 155, 94, 0.2);
+}
+
+.medieval-panel-inner {
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(184, 155, 94, 0.1);
+  margin: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+}
+
+/* Decorative Rivets */
+.medieval-panel::before, .medieval-panel::after {
+  /* Keep existing corner logic but add rivets as separate elements if possible */
+}
+
+/* Let's add rivets using a background on the inner panel */
+.medieval-panel-inner::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px; width: 4px; height: 4px;
+  background: var(--color-quest-gold-dark);
+  border-radius: 50%;
+  opacity: 0.4;
+  box-shadow: 0 0 2px black;
+}
+
+.medieval-panel-inner::after {
+  content: '';
+  position: absolute;
+  bottom: 2px; right: 2px; width: 4px; height: 4px;
+  background: var(--color-quest-gold-dark);
+  border-radius: 50%;
+  opacity: 0.4;
+  box-shadow: 0 0 2px black;
 }
 
 .medieval-input {
