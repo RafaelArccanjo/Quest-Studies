@@ -154,7 +154,7 @@ const PanelHeader = ({ title, icon: Icon }: { title: string, icon?: React.Elemen
 const ProgressBar = ({ progress, className = '' }: { progress: number, className?: string }) => (
   <div className={`h-2 bg-quest-panel-light border border-quest-gold-dark/50 rounded-full overflow-hidden shadow-inner ${className}`}>
     <div 
-      className="h-full bg-gradient-to-r from-quest-red-dark via-quest-red to-orange-500 shadow-[0_0_10px_rgba(255,0,0,0.5)]"
+      className="h-full bg-gradient-to-r from-quest-red-dark via-quest-red to-orange-500 shadow-[0_0_10px_rgba(255,0,0,0.5)] transition-all duration-700 ease-out"
       style={{ width: `${progress}%` }}
     ></div>
   </div>
@@ -306,16 +306,22 @@ export default function App() {
   };
 
   const triggerMedievalEffects = () => {
-    // Both sound and rain happen together (40% probability)
+    // Medieval flute/harp sound - Always play when triggered
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.log("Audio play failed", e));
+    
+    // Rain happens with 40% probability
     if (Math.random() < 0.4) {
-      // Medieval flute/harp sound
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3');
-      audio.volume = 0.5;
-      audio.play().catch(e => console.log("Audio play failed", e));
-      
       setShowRain(true);
       setTimeout(() => setShowRain(false), 5000);
     }
+  };
+
+  const playClickSound = () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    audio.volume = 0.4;
+    audio.play().catch(e => console.log("Audio play failed", e));
   };
   
   // Data State
@@ -351,6 +357,7 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state change:", _event, session?.user?.id);
       setUser(session?.user ?? null);
       setLoadingAuth(false);
     });
@@ -363,10 +370,15 @@ export default function App() {
 
     // Listen to Completions (Missions)
     const fetchCompletions = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('completions')
         .select('*')
         .eq('user_id', user.id);
+      
+      if (error) {
+        console.error("Erro ao buscar missões:", error);
+        return;
+      }
       
       if (data) {
         const newCompletions: Record<string, boolean> = {};
@@ -381,15 +393,23 @@ export default function App() {
 
     const completionsSubscription = supabase
       .channel('completions_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'completions', filter: `user_id=eq.${user.id}` }, fetchCompletions)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'completions' }, (payload) => {
+        // Refetch on any change to the table. The fetch function filters by user_id.
+        fetchCompletions();
+      })
       .subscribe();
 
     // Listen to Task Completions
     const fetchTaskCompletions = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('task_completions')
         .select('*')
         .eq('user_id', user.id);
+      
+      if (error) {
+        console.error("Erro ao buscar tarefas:", error);
+        return;
+      }
       
       if (data) {
         const newTaskCompletions: Record<string, boolean> = {};
@@ -404,78 +424,147 @@ export default function App() {
 
     const taskCompletionsSubscription = supabase
       .channel('task_completions_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_completions', filter: `user_id=eq.${user.id}` }, fetchTaskCompletions)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_completions' }, (payload) => {
+        fetchTaskCompletions();
+      })
       .subscribe();
 
     // Listen to Simulados
     const fetchSimulados = async () => {
-      const { data } = await supabase
-        .from('simulados')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-      
-      if (data) setSimulados(data);
+      try {
+        const { data, error } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.error("Erro ao buscar simulados:", error);
+          return;
+        }
+        if (data) {
+          console.log("Simulados buscados:", data.length);
+          setSimulados(data);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar simulados:", err);
+      }
     };
 
     fetchSimulados();
 
     const simuladosSubscription = supabase
       .channel('simulados_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'simulados', filter: `user_id=eq.${user.id}` }, fetchSimulados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'simulados' }, (payload) => {
+        fetchSimulados();
+      })
       .subscribe();
 
     // Listen to Detailed Simulados
     const fetchDetailedSimulados = async () => {
-      const { data } = await supabase
-        .from('detailed_simulados')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-      
-      if (data) setDetailedSimulados(data);
+      try {
+        const { data, error } = await supabase
+          .from('detailed_simulados')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.error("Erro ao buscar simulados detalhados:", error);
+          return;
+        }
+        if (data) {
+          console.log("Simulados detalhados buscados:", data.length);
+          const mappedSimulados = data.map(s => ({
+            id: s.id,
+            title: s.title,
+            contestId: s.contest_id,
+            subjectScores: s.subject_scores,
+            totalScore: s.total_score,
+            date: s.date
+          }));
+          setDetailedSimulados(mappedSimulados);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar simulados detalhados:", err);
+      }
     };
 
     fetchDetailedSimulados();
 
     const detailedSimuladosSubscription = supabase
       .channel('detailed_simulados_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'detailed_simulados', filter: `user_id=eq.${user.id}` }, fetchDetailedSimulados)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'detailed_simulados' }, (payload) => {
+        fetchDetailedSimulados();
+      })
       .subscribe();
 
     // Listen to User Contests
     const fetchUserContests = async () => {
-      const { data } = await supabase
-        .from('user_contests')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (data) setUserContests(data);
+      try {
+        const { data, error } = await supabase
+          .from('user_contests')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (error) {
+          console.error("Erro ao buscar concursos do usuário:", error);
+          return;
+        }
+        if (data) {
+          console.log("Concursos do usuário buscados:", data.length);
+          const mappedContests = data.map(c => ({
+            id: c.id,
+            name: c.name,
+            cutoffScore: c.cutoff_score,
+            warningScore: c.warning_score,
+            subjects: c.subjects
+          }));
+          setUserContests(mappedContests);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar concursos:", err);
+      }
     };
 
     fetchUserContests();
 
     const userContestsSubscription = supabase
       .channel('user_contests_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_contests', filter: `user_id=eq.${user.id}` }, fetchUserContests)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_contests' }, (payload) => {
+        fetchUserContests();
+      })
       .subscribe();
 
     // Listen to Redacoes
     const fetchRedacoes = async () => {
-      const { data } = await supabase
-        .from('redacoes')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (data) setRedacoes(data);
+      try {
+        const { data, error } = await supabase
+          .from('redacoes')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error("Erro ao buscar redações:", error);
+          return;
+        }
+        if (data) {
+          console.log("Redações buscadas:", data.length);
+          setRedacoes(data);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar redações:", err);
+      }
     };
 
     fetchRedacoes();
 
     const redacoesSubscription = supabase
       .channel('redacoes_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'redacoes', filter: `user_id=eq.${user.id}` }, fetchRedacoes)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'redacoes' }, (payload) => {
+        fetchRedacoes();
+      })
       .subscribe();
 
     return () => {
@@ -517,7 +606,14 @@ export default function App() {
     try {
       if (isCompleted) {
         await supabase.from('completions').delete().eq('id', docId);
+        // Optimistic update or manual refetch
+        setCompletions(prev => {
+          const next = { ...prev };
+          delete next[`${dateStr}_${subject}`];
+          return next;
+        });
       } else {
+        playClickSound();
         await supabase.from('completions').insert({
           id: docId,
           user_id: user.id,
@@ -525,11 +621,14 @@ export default function App() {
           subject: subject
         });
         
+        // Optimistic update
+        setCompletions(prev => ({ ...prev, [`${dateStr}_${subject}`]: true }));
+        
         // Determine if this is the last mission of the day being completed
         const todayDayOfWeek = new Date().getDay();
         const todaysMissions = weeklySchedule.map(row => ({
           subject: row.days[todayDayOfWeek],
-          completed: !!completions[`${dateStr}_${row.days[todayDayOfWeek]}`]
+          completed: !!completions[`${dateStr}_${row.days[todayDayOfWeek]}`] || row.days[todayDayOfWeek] === subject
         }));
         
         const otherMissions = todaysMissions.filter(m => m.subject !== subject);
@@ -554,13 +653,20 @@ export default function App() {
     try {
       if (isCompleted) {
         await supabase.from('completions').delete().eq('id', docId);
+        setCompletions(prev => {
+          const next = { ...prev };
+          delete next[`${dateStr}_Flashcards`];
+          return next;
+        });
       } else {
+        playClickSound();
         await supabase.from('completions').insert({
           id: docId,
           user_id: user.id,
           date: dateStr,
           subject: 'Flashcards'
         });
+        setCompletions(prev => ({ ...prev, [`${dateStr}_Flashcards`]: true }));
         
         // Minimalist flashcard sound (a soft page turn / click)
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
@@ -579,13 +685,20 @@ export default function App() {
     try {
       if (isCompleted) {
         await supabase.from('task_completions').delete().eq('id', docId);
+        setTaskCompletions(prev => {
+          const next = { ...prev };
+          delete next[`${subject}_${taskId}`];
+          return next;
+        });
       } else {
+        playClickSound();
         await supabase.from('task_completions').insert({
           id: docId,
           user_id: user.id,
           subject: subject,
           task_id: taskId
         });
+        setTaskCompletions(prev => ({ ...prev, [`${subject}_${taskId}`]: true }));
         triggerMedievalEffects();
       }
     } catch (err: any) {
@@ -662,27 +775,6 @@ export default function App() {
     }
   };
 
-  const addRedacao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRedacao.theme.trim() || !user) return;
-    
-    // Handle comma instead of dot
-    const parsedScore = Number(String(newRedacao.score).replace(',', '.'));
-    const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
-
-    try {
-      await supabase.from('redacoes').insert({
-        user_id: user.id,
-        theme: newRedacao.theme,
-        score: finalScore,
-        date: new Date().toISOString().split('T')[0]
-      });
-      setNewRedacao({ theme: '', score: 0 });
-    } catch (err: any) {
-      console.error("Erro ao salvar redação: " + err.message);
-    }
-  };
-
   if (loadingAuth) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -744,6 +836,28 @@ export default function App() {
       </div>
     );
   }
+
+  const addRedacao = async () => {
+    if (!newRedacao.theme.trim() || !user) return;
+    
+    // Handle comma instead of dot
+    const parsedScore = Number(String(newRedacao.score).replace(',', '.'));
+    const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
+
+    try {
+      const { error } = await supabase.from('redacoes').insert({
+        user_id: user.id,
+        theme: newRedacao.theme,
+        score: finalScore,
+        date: new Date().toISOString().split('T')[0]
+      });
+      
+      if (error) throw error;
+      setNewRedacao({ theme: '', score: 0 });
+    } catch (err: any) {
+      console.error("Erro ao salvar redação: " + err.message);
+    }
+  };
 
   const getWeekDates = () => {
     const today = new Date();
@@ -923,17 +1037,20 @@ export default function App() {
               </div>
             ) : (
               todaysMissions.map((mission, idx) => (
-                <div 
+                <motion.div 
                   key={idx} 
+                  initial={false}
+                  animate={{ scale: mission.completed ? 0.98 : 1 }}
                   className={`flex items-center justify-between p-4 border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light transition-colors ${mission.completed ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <button 
+                    <motion.button 
+                      whileTap={{ scale: 0.8 }}
                       className="text-quest-gold-dark hover:text-quest-gold transition-colors drop-shadow-md"
                       onClick={() => toggleMission(mission.subject, mission.completed)}
                     >
                       {mission.completed ? <CheckSquare className="text-quest-red" size={24} /> : <Square size={24} />}
-                    </button>
+                    </motion.button>
                     <span 
                       className={`text-lg cursor-pointer flex-1 ${mission.completed ? 'line-through text-quest-text-muted' : 'text-quest-text hover:text-quest-gold'}`}
                       onClick={() => setSelectedSubject(mission.subject)}
@@ -942,7 +1059,7 @@ export default function App() {
                     </span>
                   </div>
                   <span className="text-sm text-quest-gold-dark">{mission.time}</span>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
@@ -1106,6 +1223,8 @@ export default function App() {
                                 <button 
                                   onClick={async () => {
                                     try {
+                                      // Optimistic update
+                                      setRedacoes(prev => prev.filter(item => item.id !== r.id));
                                       await supabase.from('redacoes').delete().eq('id', r.id);
                                       setDeletingRedacaoId(null);
                                     } catch (err) {
@@ -1360,6 +1479,8 @@ export default function App() {
                                 <button 
                                   onClick={async () => {
                                     try {
+                                      // Optimistic update
+                                      setDetailedSimulados(prev => prev.filter(item => item.id !== simulado.id));
                                       await supabase.from('detailed_simulados').delete().eq('id', simulado.id);
                                       setDeletingSimuladoId(null);
                                     } catch (err) {
@@ -1653,11 +1774,14 @@ export default function App() {
                 subjectTasks[selectedSubject].map(task => {
                   const isTaskCompleted = !!taskCompletions[`${selectedSubject}_${task.id}`];
                   return (
-                    <div 
+                    <motion.div 
                       key={task.id}
+                      initial={false}
+                      animate={{ scale: isTaskCompleted ? 0.98 : 1 }}
                       className={`flex items-start gap-3 p-3 border border-quest-gold-dark/20 rounded hover:bg-quest-panel-light transition-all ${isTaskCompleted ? 'opacity-50 bg-black/30' : 'bg-black/10'}`}
                     >
-                      <button 
+                      <motion.button 
+                        whileTap={{ scale: 0.8 }}
                         className="mt-0.5 text-quest-gold-dark hover:text-quest-gold transition-colors"
                         onClick={() => setSelectedTaskContent({ 
                           title: task.title, 
@@ -1668,20 +1792,21 @@ export default function App() {
                         title="Ver conteúdo da tarefa"
                       >
                         <Eye size={20} />
-                      </button>
-                      <div 
+                      </motion.button>
+                      <motion.div 
+                        whileTap={{ scale: 0.8 }}
                         className="mt-0.5 text-quest-gold-dark cursor-pointer"
                         onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
                       >
                         {isTaskCompleted ? <CheckSquare className="text-quest-red" size={20} /> : <Square size={20} />}
-                      </div>
+                      </motion.div>
                       <span 
                         className={`text-sm cursor-pointer flex-1 ${isTaskCompleted ? 'line-through text-quest-text-muted' : 'text-quest-text'}`}
                         onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
                       >
                         {task.title}
                       </span>
-                    </div>
+                    </motion.div>
                   );
                 })
               ) : (
