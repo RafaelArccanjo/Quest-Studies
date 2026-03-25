@@ -417,6 +417,12 @@ export default function App() {
     music.volume = 0.8;
     music.play().catch(e => console.log("Audio play failed", e));
     
+    // Stop music after 10 seconds
+    setTimeout(() => {
+      music.pause();
+      music.currentTime = 0;
+    }, 10000);
+
     // Knight Sword Clash & Shield Impact
     setTimeout(() => {
       const clash = new Audio('https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3');
@@ -433,6 +439,12 @@ export default function App() {
     audio.volume = 0.5;
     audio.play().catch(e => console.log("Audio play failed", e));
     
+    // Stop audio after 10 seconds
+    setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }, 10000);
+
     // Rain happens with 40% probability
     if (Math.random() < 0.4) {
       setShowRain(true);
@@ -477,6 +489,10 @@ export default function App() {
     const tasks = subjectTasks[subject];
     return tasks.length > 0 && tasks.every(task => !!taskCompletions[`${subject}_${task.id}`]);
   });
+
+  const activeWeeklySchedule = weeklySchedule.filter(row => 
+    row.days.some(subject => !completedSubjects.includes(subject))
+  );
 
   const allContests = [...CONTESTS, ...userContests];
 
@@ -1093,6 +1109,7 @@ export default function App() {
     .filter(subject => {
       const stats = battleStats[subject];
       const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+      // Hide if 100% progress OR if all tasks are completed
       return progress < 100 && !completedSubjects.includes(subject);
     })
     .map(subject => {
@@ -1283,28 +1300,42 @@ export default function App() {
                 </tr>
               </thead>
               <tbody className="text-xs text-quest-text-muted">
-                {weeklySchedule.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50">
-                    <td className="p-4 border-r border-quest-gold-dark/20 font-mono">{row.time}</td>
-                    {row.days.map((subject, colIdx) => {
-                      const dateStr = weekDates[colIdx];
-                      const isChecked = !!completions[`${dateStr}_${subject}`];
-                      const isCompleted = completedSubjects.includes(subject);
-                      return (
-                        <td key={colIdx} className={`p-4 border-r border-quest-gold-dark/20 last:border-0 cursor-pointer hover:bg-quest-panel-light/50 transition-colors ${isCompleted ? 'bg-quest-gold/10' : ''}`} onClick={() => setSelectedSubject(subject)}>
-                          <div className={`flex flex-col items-center justify-center gap-1 transition-opacity ${isChecked || isCompleted ? 'opacity-40' : 'opacity-100'}`}>
-                            <span className={isChecked || isCompleted ? 'text-quest-text-muted line-through' : 'text-quest-text'}>
-                              {subject}
-                            </span>
-                            {isCompleted && (
-                              <span className="text-[9px] text-quest-gold font-bold tracking-tighter">100% VENCIDA</span>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
+                {activeWeeklySchedule.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center italic text-quest-text-muted">
+                      Todas as matérias desta jornada foram vencidas! Veja o Salão dos Heróis abaixo.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  activeWeeklySchedule.map((row, rowIdx) => (
+                    <tr key={rowIdx} className="border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50">
+                      <td className="p-4 border-r border-quest-gold-dark/20 font-mono">{row.time}</td>
+                      {row.days.map((subject, colIdx) => {
+                        const dateStr = weekDates[colIdx];
+                        const isChecked = !!completions[`${dateStr}_${subject}`];
+                        const isCompleted = completedSubjects.includes(subject);
+                        
+                        if (isCompleted) {
+                          return (
+                            <td key={colIdx} className="p-4 border-r border-quest-gold-dark/20 last:border-0 bg-quest-gold/5 opacity-20">
+                              {/* Hidden 100% Completed Subject */}
+                            </td>
+                          );
+                        }
+
+                        return (
+                          <td key={colIdx} className="p-4 border-r border-quest-gold-dark/20 last:border-0 cursor-pointer hover:bg-quest-panel-light/50 transition-colors" onClick={() => setSelectedSubject(subject)}>
+                            <div className={`flex flex-col items-center justify-center gap-1 transition-opacity ${isChecked ? 'opacity-40' : 'opacity-100'}`}>
+                              <span className={isChecked ? 'text-quest-text-muted line-through' : 'text-quest-text'}>
+                                {subject}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
