@@ -71,6 +71,27 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidDetailedSimulado(data) {
+      return hasOnlyAllowedFields(['userId', 'title', 'contestId', 'subjectScores', 'totalScore', 'date', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.contestId is string && data.contestId.size() > 0 && data.contestId.size() <= 100 &&
+             data.subjectScores is map &&
+             data.totalScore is number && data.totalScore >= 0 &&
+             data.date is string && data.date.size() > 0 && data.date.size() <= 20 &&
+             data.createdAt is string;
+    }
+
+    function isValidUserContest(data) {
+      return hasOnlyAllowedFields(['userId', 'name', 'cutoffScore', 'warningScore', 'subjects', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.cutoffScore is number && data.cutoffScore >= 0 &&
+             data.warningScore is number && data.warningScore >= 0 &&
+             data.subjects is list &&
+             data.createdAt is string;
+    }
+
     function isValidRedacao(data) {
       return hasOnlyAllowedFields(['userId', 'theme', 'score', 'date', 'createdAt']) &&
              data.userId is string && data.userId.size() > 0 &&
@@ -117,6 +138,20 @@ service cloud.firestore {
       allow read: if isDocOwner();
       allow create: if isAuthenticated() && isValidSimulado(request.resource.data) && uidUnchanged();
       allow update: if isDocOwner() && isValidSimulado(request.resource.data) && uidNotModified() && areImmutableFieldsUnchanged(['createdAt', 'userId']);
+      allow delete: if isDocOwner();
+    }
+
+    match /detailed_simulados/{simuladoId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidDetailedSimulado(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidDetailedSimulado(request.resource.data) && uidNotModified() && areImmutableFieldsUnchanged(['createdAt', 'userId']);
+      allow delete: if isDocOwner();
+    }
+
+    match /user_contests/{contestId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidUserContest(request.resource.data) && uidUnchanged();
+      allow update: if isDocOwner() && isValidUserContest(request.resource.data) && uidNotModified() && areImmutableFieldsUnchanged(['createdAt', 'userId']);
       allow delete: if isDocOwner();
     }
 

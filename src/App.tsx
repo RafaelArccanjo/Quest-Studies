@@ -209,6 +209,8 @@ export default function App() {
   const [newContest, setNewContest] = useState({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
   const [newRedacao, setNewRedacao] = useState({ theme: '', score: 0 });
   const [selectedContestId, setSelectedContestId] = useState('bb');
+  const [deletingSimuladoId, setDeletingSimuladoId] = useState<string | null>(null);
+  const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
 
   const allContests = [...CONTESTS, ...userContests];
 
@@ -246,16 +248,18 @@ export default function App() {
     });
 
     // Listen to Simulados
-    const qSimulados = query(collection(db, 'simulados'), orderBy('createdAt', 'asc'));
+    const qSimulados = query(collection(db, 'simulados'), where('userId', '==', user.uid));
     const unsubSimulados = onSnapshot(qSimulados, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((s: any) => s.userId === user.uid);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setSimulados(data);
     });
 
     // Listen to Detailed Simulados
-    const qDetailedSimulados = query(collection(db, 'detailed_simulados'), orderBy('createdAt', 'asc'));
+    const qDetailedSimulados = query(collection(db, 'detailed_simulados'), where('userId', '==', user.uid));
     const unsubDetailedSimulados = onSnapshot(qDetailedSimulados, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((s: any) => s.userId === user.uid);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setDetailedSimulados(data);
     });
 
@@ -267,9 +271,10 @@ export default function App() {
     });
 
     // Listen to Redacoes
-    const qRedacoes = query(collection(db, 'redacoes'), orderBy('createdAt', 'desc'));
+    const qRedacoes = query(collection(db, 'redacoes'), where('userId', '==', user.uid));
     const unsubRedacoes = onSnapshot(qRedacoes, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter((r: any) => r.userId === user.uid);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRedacoes(data);
     });
 
@@ -311,8 +316,7 @@ export default function App() {
         });
       }
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao atualizar missão: " + err.message);
+      console.error("Erro ao atualizar missão: " + err.message);
     }
   };
 
@@ -332,8 +336,7 @@ export default function App() {
         });
       }
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao atualizar tarefa: " + err.message);
+      console.error("Erro ao atualizar tarefa: " + err.message);
     }
   };
 
@@ -351,8 +354,7 @@ export default function App() {
       });
       setNewSimulado({ title: '', score: 0, targetScore: 80 });
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao registrar simulado: " + err.message);
+      console.error("Erro ao registrar simulado: " + err.message);
     }
   };
 
@@ -382,8 +384,7 @@ export default function App() {
       setNewDetailedSimulado({ title: '', contestId: 'bb', subjectScores: {} });
       setIsSimuladoModalOpen(false);
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao registrar simulado detalhado: " + err.message);
+      console.error("Erro ao registrar simulado detalhado: " + err.message);
     }
   };
 
@@ -407,26 +408,29 @@ export default function App() {
       setNewContest({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
       setSimuladoModalTab('registrar');
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao registrar concurso: " + err.message);
+      console.error("Erro ao registrar concurso: " + err.message);
     }
   };
 
   const addRedacao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRedacao.theme.trim() || !user) return;
+    
+    // Handle comma instead of dot
+    const parsedScore = Number(String(newRedacao.score).replace(',', '.'));
+    const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
+
     try {
       await addDoc(collection(db, 'redacoes'), {
         userId: user.uid,
         theme: newRedacao.theme,
-        score: Number(newRedacao.score),
+        score: finalScore,
         date: new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString()
       });
       setNewRedacao({ theme: '', score: 0 });
     } catch (err: any) {
-      console.error(err);
-      alert("Erro ao salvar redação: " + err.message);
+      console.error("Erro ao salvar redação: " + err.message);
     }
   };
 
@@ -746,7 +750,40 @@ export default function App() {
                         <p className="text-quest-text text-lg">{r.theme}</p>
                         <p className="text-xs text-quest-gold-dark">{r.date}</p>
                       </div>
-                      <div className="text-2xl font-serif text-quest-gold drop-shadow-md">{r.score}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-2xl font-serif text-quest-gold drop-shadow-md">{r.score}</div>
+                        {deletingRedacaoId === r.id ? (
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await deleteDoc(doc(db, 'redacoes', r.id));
+                                  setDeletingRedacaoId(null);
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }}
+                              className="text-quest-red font-bold text-xs uppercase hover:underline"
+                            >
+                              Confirmar
+                            </button>
+                            <button 
+                              onClick={() => setDeletingRedacaoId(null)}
+                              className="text-quest-text-muted text-xs uppercase hover:underline"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setDeletingRedacaoId(r.id)}
+                            className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
+                            title="Excluir Redação"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -961,22 +998,37 @@ export default function App() {
                                 {isApproved ? 'APROVADO' : 'REPROVADO'}
                               </p>
                             </div>
-                            <button 
-                              onClick={async () => {
-                                if (window.confirm('Tem certeza que deseja excluir este simulado?')) {
-                                  try {
-                                    await deleteDoc(doc(db, 'detailed_simulados', simulado.id));
-                                  } catch (err) {
-                                    console.error(err);
-                                    alert('Erro ao excluir.');
-                                  }
-                                }
-                              }}
-                              className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
-                              title="Excluir Simulado"
-                            >
-                              <Trash2 size={20} />
-                            </button>
+                            {deletingSimuladoId === simulado.id ? (
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await deleteDoc(doc(db, 'detailed_simulados', simulado.id));
+                                      setDeletingSimuladoId(null);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="text-quest-red font-bold text-xs uppercase hover:underline"
+                                >
+                                  Confirmar
+                                </button>
+                                <button 
+                                  onClick={() => setDeletingSimuladoId(null)}
+                                  className="text-quest-text-muted text-xs uppercase hover:underline"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <button 
+                                onClick={() => setDeletingSimuladoId(simulado.id)}
+                                className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
+                                title="Excluir Simulado"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                            )}
                           </div>
                         </div>
                         
