@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
-  CheckSquare, Square, TrendingUp, Calendar, Shield, Plus, X, Eye, Trash2, Settings
+  CheckSquare, Square, TrendingUp, Calendar, Shield, Plus, X, Eye, Trash2, Settings,
+  Coins, Crown, Scroll, Sparkles
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, collection, query, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, orderBy, setDoc, deleteDoc, where } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { supabase } from './supabase';
+import { User } from '@supabase/supabase-js';
 import { cbTasksContent } from './data/cbTasksContent';
 import { cbTasksPages } from './data/cbTasksPages';
 import { vnTasksPages } from './data/vnTasksPages';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { motion, AnimatePresence } from 'motion/react';
+import { DragonIcon, KnightIcon, CrestLogo } from './components/Icons';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // --- MOCK DATA ---
 const weeklySchedule = [
@@ -183,10 +179,144 @@ export const CONTESTS = [
   }
 ];
 
+const MedievalRain = () => {
+  const items = [Coins, Swords, Shield, Crown, Scroll, Sparkles];
+  const drops = Array.from({ length: 30 }).map((_, i) => {
+    const Icon = items[Math.floor(Math.random() * items.length)];
+    return {
+      id: i,
+      Icon,
+      left: `${Math.random() * 100}vw`,
+      duration: Math.random() * 2 + 2,
+      delay: Math.random() * 0.5,
+      size: Math.random() * 24 + 16,
+      rotation: Math.random() * 360
+    };
+  });
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden">
+      {drops.map(drop => (
+        <motion.div
+          key={drop.id}
+          initial={{ y: '-10vh', x: drop.left, rotate: 0, opacity: 0 }}
+          animate={{ 
+            y: '110vh', 
+            rotate: drop.rotation,
+            opacity: [0, 1, 1, 0]
+          }}
+          transition={{ 
+            duration: drop.duration, 
+            delay: drop.delay, 
+            ease: "linear",
+            repeat: 0
+          }}
+          className="absolute text-quest-gold drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]"
+        >
+          <drop.Icon size={drop.size} />
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+const DragonEncounter = () => {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden flex items-center justify-center">
+      {/* Background Dimming */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.8, 0.8, 0] }}
+        transition={{ duration: 7, ease: "easeInOut" }}
+        className="absolute inset-0 bg-black/80"
+      />
+
+      {/* Dragon */}
+      <motion.div
+        initial={{ x: '100vw', y: '-20vh', scale: 0.5, opacity: 0 }}
+        animate={{ 
+          x: ['100vw', '20vw', '20vw', '-100vw'], 
+          y: ['-20vh', '0vh', '0vh', '-50vh'],
+          scale: [0.5, 2.5, 2.5, 1],
+          opacity: [0, 1, 1, 0]
+        }}
+        transition={{ duration: 7, ease: "easeInOut" }}
+        className="absolute left-1/2 top-1/2 -translate-y-1/2 flex items-center"
+      >
+        {/* Fire Breath */}
+        <motion.div 
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: [0, 0, 1, 1, 0], opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: 7, ease: "easeInOut", times: [0, 0.2, 0.25, 0.4, 0.45] }}
+          className="absolute right-[80%] h-32 w-96 bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-md rounded-full"
+          style={{ filter: 'drop-shadow(0 0 20px rgba(255,100,0,0.8))' }}
+        />
+        <DragonIcon className="w-48 h-48 text-red-600 drop-shadow-[0_0_30px_rgba(255,0,0,0.8)]" />
+      </motion.div>
+
+      {/* Knight */}
+      <motion.div
+        initial={{ x: '-100vw', y: '20vh', scale: 0.5, opacity: 0 }}
+        animate={{ 
+          x: ['-100vw', '-20vw', '-20vw', '-100vw'], 
+          y: ['20vh', '10vh', '10vh', '50vh'],
+          scale: [0.5, 2, 2, 1],
+          opacity: [0, 1, 1, 0]
+        }}
+        transition={{ duration: 7, ease: "easeInOut" }}
+        className="absolute left-1/2 top-1/2 -translate-y-1/2"
+      >
+        <KnightIcon className="w-40 h-40 text-quest-gold drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] transform -scale-x-100" />
+      </motion.div>
+      
+      {/* Clash Flash */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: [0, 0, 1, 0], scale: [0, 0, 2, 0] }}
+        transition={{ duration: 7, ease: "easeInOut", times: [0, 0.24, 0.25, 0.35] }}
+        className="absolute w-full h-full bg-white mix-blend-overlay"
+      />
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [showRain, setShowRain] = useState(false);
+  const [showDragon, setShowDragon] = useState(false);
+
+  const triggerDragonEncounter = () => {
+    setShowDragon(true);
+    
+    // Dragon Roar
+    const roar = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
+    roar.volume = 0.8;
+    roar.play().catch(e => console.log("Audio play failed", e));
+    
+    // Knight Sword Clash (delayed)
+    setTimeout(() => {
+      const clash = new Audio('https://assets.mixkit.co/active_storage/sfx/2771/2771-preview.mp3');
+      clash.volume = 0.6;
+      clash.play().catch(e => console.log("Audio play failed", e));
+    }, 2500);
+
+    setTimeout(() => setShowDragon(false), 7000);
+  };
+
+  const triggerMedievalEffects = () => {
+    // Both sound and rain happen together (40% probability)
+    if (Math.random() < 0.4) {
+      // Medieval flute/harp sound
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log("Audio play failed", e));
+      
+      setShowRain(true);
+      setTimeout(() => setShowRain(false), 5000);
+    }
+  };
   
   // Data State
   const [completions, setCompletions] = useState<Record<string, boolean>>({});
@@ -215,125 +345,248 @@ export default function App() {
   const allContests = [...CONTESTS, ...userContests];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoadingAuth(false);
     });
-    return () => unsubscribe();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoadingAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!user) return;
 
     // Listen to Completions (Missions)
-    const qCompletions = query(collection(db, 'completions'), where('userId', '==', user.uid));
-    const unsubCompletions = onSnapshot(qCompletions, (snapshot) => {
-      const newCompletions: Record<string, boolean> = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        newCompletions[`${data.date}_${data.subject}`] = true;
-      });
-      setCompletions(newCompletions);
-    });
+    const fetchCompletions = async () => {
+      const { data } = await supabase
+        .from('completions')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (data) {
+        const newCompletions: Record<string, boolean> = {};
+        data.forEach(item => {
+          newCompletions[`${item.date}_${item.subject}`] = true;
+        });
+        setCompletions(newCompletions);
+      }
+    };
+
+    fetchCompletions();
+
+    const completionsSubscription = supabase
+      .channel('completions_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'completions', filter: `user_id=eq.${user.id}` }, fetchCompletions)
+      .subscribe();
 
     // Listen to Task Completions
-    const qTaskCompletions = query(collection(db, 'taskCompletions'), where('userId', '==', user.uid));
-    const unsubTaskCompletions = onSnapshot(qTaskCompletions, (snapshot) => {
-      const newTaskCompletions: Record<string, boolean> = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        newTaskCompletions[`${data.subject}_${data.taskId}`] = true;
-      });
-      setTaskCompletions(newTaskCompletions);
-    });
+    const fetchTaskCompletions = async () => {
+      const { data } = await supabase
+        .from('task_completions')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (data) {
+        const newTaskCompletions: Record<string, boolean> = {};
+        data.forEach(item => {
+          newTaskCompletions[`${item.subject}_${item.task_id}`] = true;
+        });
+        setTaskCompletions(newTaskCompletions);
+      }
+    };
+
+    fetchTaskCompletions();
+
+    const taskCompletionsSubscription = supabase
+      .channel('task_completions_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_completions', filter: `user_id=eq.${user.id}` }, fetchTaskCompletions)
+      .subscribe();
 
     // Listen to Simulados
-    const qSimulados = query(collection(db, 'simulados'), where('userId', '==', user.uid));
-    const unsubSimulados = onSnapshot(qSimulados, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      setSimulados(data);
-    });
+    const fetchSimulados = async () => {
+      const { data } = await supabase
+        .from('simulados')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      
+      if (data) setSimulados(data);
+    };
+
+    fetchSimulados();
+
+    const simuladosSubscription = supabase
+      .channel('simulados_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'simulados', filter: `user_id=eq.${user.id}` }, fetchSimulados)
+      .subscribe();
 
     // Listen to Detailed Simulados
-    const qDetailedSimulados = query(collection(db, 'detailed_simulados'), where('userId', '==', user.uid));
-    const unsubDetailedSimulados = onSnapshot(qDetailedSimulados, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      setDetailedSimulados(data);
-    });
+    const fetchDetailedSimulados = async () => {
+      const { data } = await supabase
+        .from('detailed_simulados')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      
+      if (data) setDetailedSimulados(data);
+    };
+
+    fetchDetailedSimulados();
+
+    const detailedSimuladosSubscription = supabase
+      .channel('detailed_simulados_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'detailed_simulados', filter: `user_id=eq.${user.id}` }, fetchDetailedSimulados)
+      .subscribe();
 
     // Listen to User Contests
-    const qUserContests = query(collection(db, 'user_contests'), where('userId', '==', user.uid));
-    const unsubUserContests = onSnapshot(qUserContests, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUserContests(data);
-    });
+    const fetchUserContests = async () => {
+      const { data } = await supabase
+        .from('user_contests')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (data) setUserContests(data);
+    };
+
+    fetchUserContests();
+
+    const userContestsSubscription = supabase
+      .channel('user_contests_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_contests', filter: `user_id=eq.${user.id}` }, fetchUserContests)
+      .subscribe();
 
     // Listen to Redacoes
-    const qRedacoes = query(collection(db, 'redacoes'), where('userId', '==', user.uid));
-    const unsubRedacoes = onSnapshot(qRedacoes, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setRedacoes(data);
-    });
+    const fetchRedacoes = async () => {
+      const { data } = await supabase
+        .from('redacoes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (data) setRedacoes(data);
+    };
+
+    fetchRedacoes();
+
+    const redacoesSubscription = supabase
+      .channel('redacoes_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'redacoes', filter: `user_id=eq.${user.id}` }, fetchRedacoes)
+      .subscribe();
 
     return () => {
-      unsubCompletions();
-      unsubTaskCompletions();
-      unsubSimulados();
-      unsubDetailedSimulados();
-      unsubUserContests();
-      unsubRedacoes();
+      completionsSubscription.unsubscribe();
+      taskCompletionsSubscription.unsubscribe();
+      simuladosSubscription.unsubscribe();
+      detailedSimuladosSubscription.unsubscribe();
+      userContestsSubscription.unsubscribe();
+      redacoesSubscription.unsubscribe();
     };
   }, [user]);
 
-  const handleLogin = async () => {
+  const [loginEmail, setLoginEmail] = useState('admin@admin.com');
+  const [loginPassword, setLoginPassword] = useState('admin123');
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+      if (error) throw error;
     } catch (err: any) {
-      console.error('Falha no login com Google:', err);
+      setLoginError(err.message);
+      console.error('Falha no login:', err);
     }
   };
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => supabase.auth.signOut();
 
   const toggleMission = async (subject: string, isCompleted: boolean) => {
     if (!user) return;
     const dateStr = new Date().toISOString().split('T')[0];
-    const docId = `${user.uid}_${dateStr}_${encodeURIComponent(subject)}`;
+    const docId = `${user.id}_${dateStr}_${encodeURIComponent(subject)}`;
     
     try {
       if (isCompleted) {
-        await deleteDoc(doc(db, 'completions', docId));
+        await supabase.from('completions').delete().eq('id', docId);
       } else {
-        await setDoc(doc(db, 'completions', docId), {
-          userId: user.uid,
+        await supabase.from('completions').insert({
+          id: docId,
+          user_id: user.id,
           date: dateStr,
-          subject: subject,
-          createdAt: serverTimestamp()
+          subject: subject
         });
+        
+        // Determine if this is the last mission of the day being completed
+        const todayDayOfWeek = new Date().getDay();
+        const todaysMissions = weeklySchedule.map(row => ({
+          subject: row.days[todayDayOfWeek],
+          completed: !!completions[`${dateStr}_${row.days[todayDayOfWeek]}`]
+        }));
+        
+        const otherMissions = todaysMissions.filter(m => m.subject !== subject);
+        const allOthersCompleted = otherMissions.every(m => m.completed);
+        
+        if (allOthersCompleted && todaysMissions.length > 0) {
+          triggerDragonEncounter();
+        } else {
+          triggerMedievalEffects();
+        }
       }
     } catch (err: any) {
       console.error("Erro ao atualizar missão: " + err.message);
     }
   };
 
-  const toggleTask = async (subject: string, taskId: string, isCompleted: boolean) => {
+  const toggleFlashcards = async (isCompleted: boolean) => {
     if (!user) return;
-    const docId = `${user.uid}_${encodeURIComponent(subject)}_${taskId}`;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const docId = `${user.id}_${dateStr}_Flashcards`;
     
     try {
       if (isCompleted) {
-        await deleteDoc(doc(db, 'taskCompletions', docId));
+        await supabase.from('completions').delete().eq('id', docId);
       } else {
-        await setDoc(doc(db, 'taskCompletions', docId), {
-          userId: user.uid,
-          subject: subject,
-          taskId: taskId,
-          createdAt: serverTimestamp()
+        await supabase.from('completions').insert({
+          id: docId,
+          user_id: user.id,
+          date: dateStr,
+          subject: 'Flashcards'
         });
+        
+        // Minimalist flashcard sound (a soft page turn / click)
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log("Audio play failed", e));
+      }
+    } catch (err: any) {
+      console.error("Erro ao atualizar flashcards: " + err.message);
+    }
+  };
+
+  const toggleTask = async (subject: string, taskId: string, isCompleted: boolean) => {
+    if (!user) return;
+    const docId = `${user.id}_${encodeURIComponent(subject)}_${taskId}`;
+    
+    try {
+      if (isCompleted) {
+        await supabase.from('task_completions').delete().eq('id', docId);
+      } else {
+        await supabase.from('task_completions').insert({
+          id: docId,
+          user_id: user.id,
+          subject: subject,
+          task_id: taskId
+        });
+        triggerMedievalEffects();
       }
     } catch (err: any) {
       console.error("Erro ao atualizar tarefa: " + err.message);
@@ -344,13 +597,12 @@ export default function App() {
     e.preventDefault();
     if (!newSimulado.title.trim() || !user) return;
     try {
-      await addDoc(collection(db, 'simulados'), {
-        userId: user.uid,
+      await supabase.from('simulados').insert({
+        user_id: user.id,
         title: newSimulado.title,
         score: Number(newSimulado.score),
-        targetScore: Number(newSimulado.targetScore),
-        date: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
+        target_score: Number(newSimulado.targetScore),
+        date: new Date().toISOString().split('T')[0]
       });
       setNewSimulado({ title: '', score: 0, targetScore: 80 });
     } catch (err: any) {
@@ -372,14 +624,13 @@ export default function App() {
     });
 
     try {
-      await addDoc(collection(db, 'detailed_simulados'), {
-        userId: user.uid,
+      await supabase.from('detailed_simulados').insert({
+        user_id: user.id,
         title: newDetailedSimulado.title,
-        contestId: newDetailedSimulado.contestId,
-        subjectScores: newDetailedSimulado.subjectScores,
-        totalScore,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
+        contest_id: newDetailedSimulado.contestId,
+        subject_scores: newDetailedSimulado.subjectScores,
+        total_score: totalScore,
+        date: new Date().toISOString().split('T')[0]
       });
       setNewDetailedSimulado({ title: '', contestId: 'bb', subjectScores: {} });
       setIsSimuladoModalOpen(false);
@@ -393,17 +644,16 @@ export default function App() {
     if (!newContest.name.trim() || !user) return;
     
     try {
-      await addDoc(collection(db, 'user_contests'), {
-        userId: user.uid,
+      await supabase.from('user_contests').insert({
+        user_id: user.id,
         name: newContest.name,
-        cutoffScore: Number(newContest.cutoffScore),
-        warningScore: Number(newContest.warningScore),
+        cutoff_score: Number(newContest.cutoffScore),
+        warning_score: Number(newContest.warningScore),
         subjects: newContest.subjects.map(s => ({
           name: s.name,
           questions: Number(s.questions),
           weight: Number(s.weight)
-        })),
-        createdAt: new Date().toISOString()
+        }))
       });
       setNewContest({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
       setSimuladoModalTab('registrar');
@@ -421,12 +671,11 @@ export default function App() {
     const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
 
     try {
-      await addDoc(collection(db, 'redacoes'), {
-        userId: user.uid,
+      await supabase.from('redacoes').insert({
+        user_id: user.id,
         theme: newRedacao.theme,
         score: finalScore,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
+        date: new Date().toISOString().split('T')[0]
       });
       setNewRedacao({ theme: '', score: 0 });
     } catch (err: any) {
@@ -435,22 +684,62 @@ export default function App() {
   };
 
   if (loadingAuth) {
-    return <div className="min-h-screen flex items-center justify-center text-quest-gold font-serif text-2xl">Carregando o Reino...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <motion.div
+          animate={{ 
+            scale: [1, 1.1, 1],
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{ 
+            duration: 2, 
+            repeat: Infinity,
+            ease: "easeInOut" 
+          }}
+        >
+          <CrestLogo className="w-32 h-32 text-quest-gold drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] mb-6" />
+        </motion.div>
+        <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] animate-pulse">
+          FORJANDO O REINO...
+        </h1>
+      </div>
+    );
   }
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Panel className="w-full max-w-md p-8 text-center">
-          <Shield size={48} className="mx-auto text-quest-gold mb-4 drop-shadow-[0_0_10px_rgba(212,175,55,0.5)]" />
+          <CrestLogo className="w-24 h-24 mx-auto text-quest-gold mb-4 drop-shadow-[0_0_15px_rgba(212,175,55,0.6)]" />
           <h1 className="font-serif text-3xl text-quest-gold mb-2">Quest Studies</h1>
           <p className="text-quest-text-muted mb-8 italic">Identifique-se, viajante.</p>
           
-          <div className="space-y-4">
-            <button onClick={handleLogin} className="w-full medieval-button mt-4 flex items-center justify-center gap-2">
-              <Shield size={18} /> Entrar com Google
+          <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <div>
+              <label className="block text-quest-gold-dark text-xs uppercase tracking-widest mb-1">E-mail</label>
+              <input 
+                type="email" 
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-2 text-quest-gold focus:outline-none focus:border-quest-gold"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-quest-gold-dark text-xs uppercase tracking-widest mb-1">Senha</label>
+              <input 
+                type="password" 
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-2 text-quest-gold focus:outline-none focus:border-quest-gold"
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-500 text-xs italic">{loginError}</p>}
+            <button type="submit" className="w-full medieval-button mt-4 flex items-center justify-center gap-2">
+              <Shield size={18} /> Entrar no Reino
             </button>
-          </div>
+          </form>
         </Panel>
       </div>
     );
@@ -479,15 +768,38 @@ export default function App() {
   const todayDayOfWeek = new Date().getDay();
   const todayDateStr = new Date().toISOString().split('T')[0];
 
+  const currentWeekFlashcards = weekDates.filter(date => completions[`${date}_Flashcards`]).length;
+  const currentWeekCycles = weekDates.reduce((acc, date, colIdx) => {
+    let count = 0;
+    weeklySchedule.forEach(row => {
+      if (completions[`${date}_${row.days[colIdx]}`]) count++;
+    });
+    return acc + count;
+  }, 0);
+  const totalWeeklyCycles = weeklySchedule.length * 7;
+  const currentWeekProgress = Math.round((currentWeekCycles / totalWeeklyCycles) * 100);
+  
+  const currentWeekLabel = `${weekDates[0].split('-').reverse().slice(0,2).join('/')} - ${weekDates[6].split('-').reverse().slice(0,2).join('/')}`;
+
+  const dynamicWeeklyHistory = [
+    { 
+      date: currentWeekLabel, 
+      cycles: `${currentWeekCycles}/${totalWeeklyCycles} ciclos`, 
+      progress: currentWeekProgress,
+      flashcards: currentWeekFlashcards
+    },
+    ...weeklyHistory.map(w => ({ ...w, flashcards: 0 }))
+  ];
+
   const todaysMissions = weeklySchedule.map(row => ({
     subject: row.days[todayDayOfWeek],
     time: row.time,
     completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
   }));
 
-  const completedMissions = todaysMissions.filter(m => m.completed).length;
-  const totalMissions = todaysMissions.length;
-  const questProgress = totalMissions === 0 ? 0 : Math.round((completedMissions / totalMissions) * 100);
+  const completedMissions = currentWeekCycles;
+  const totalMissions = totalWeeklyCycles;
+  const questProgress = currentWeekProgress;
 
   const chartData = detailedSimulados.map(s => ({
     name: s.title,
@@ -522,6 +834,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white">
+      {showRain && <MedievalRain />}
+      {showDragon && <DragonEncounter />}
       {/* HEADER */}
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center mb-10 border-b-2 border-quest-gold-dark/50 pb-6 relative">
         <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-gradient-to-r from-transparent via-quest-gold to-transparent"></div>
@@ -529,7 +843,7 @@ export default function App() {
         <div className="flex items-center gap-4 mb-4 md:mb-0">
           <div className="w-14 h-14 rounded-full bg-quest-red-dark border-2 border-quest-gold flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] relative overflow-hidden">
             <div className="absolute inset-0 bg-black/20"></div>
-            <Shield className="text-quest-gold relative z-10" size={28} />
+            <CrestLogo className="w-8 h-8 text-quest-gold relative z-10" />
           </div>
           <div>
             <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">QUEST STUDIES</h1>
@@ -559,7 +873,12 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto space-y-8">
+      <motion.main 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="max-w-6xl mx-auto space-y-8"
+      >
         
         {activeTab === 'dashboard' && (
           <>
@@ -596,7 +915,7 @@ export default function App() {
 
         {/* MISSÃO DO DIA */}
         <Panel>
-          <PanelHeader title="PERGAMINHO DE MISSÕES" />
+          <PanelHeader title={`PERGAMINHO DE MISSÕES - ${['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'][todayDayOfWeek]}`} />
           <div className="p-2">
             {todaysMissions.length === 0 ? (
               <div className="p-8 text-center">
@@ -631,9 +950,17 @@ export default function App() {
 
         {/* FLASHCARDS */}
         <Panel>
-          <div className="p-4 flex items-center gap-3 text-quest-gold-dark hover:text-quest-gold cursor-pointer transition-colors">
-            <BookOpen size={18} />
-            <span className="font-serif tracking-widest text-sm uppercase">FLASHCARDS DO DIA</span>
+          <div 
+            className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${!!completions[`${todayDateStr}_Flashcards`] ? 'opacity-50 hover:opacity-80' : 'hover:bg-quest-panel-light'}`}
+            onClick={() => toggleFlashcards(!!completions[`${todayDateStr}_Flashcards`])}
+          >
+            <div className={`flex items-center gap-3 ${!!completions[`${todayDateStr}_Flashcards`] ? 'text-quest-text-muted line-through' : 'text-quest-gold-dark hover:text-quest-gold'}`}>
+              <BookOpen size={18} />
+              <span className="font-serif tracking-widest text-sm uppercase">FLASHCARDS DO DIA</span>
+            </div>
+            <div className="text-quest-gold-dark">
+              {!!completions[`${todayDateStr}_Flashcards`] ? <CheckSquare className="text-quest-red" size={24} /> : <Square size={24} />}
+            </div>
           </div>
         </Panel>
 
@@ -743,49 +1070,73 @@ export default function App() {
                   <p className="italic text-lg">Nenhum pergaminho escrito ainda.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {redacoes.map(r => (
-                    <div key={r.id} className="flex justify-between items-center p-3 bg-quest-panel-light border border-quest-gold-dark/20 rounded">
-                      <div>
-                        <p className="text-quest-text text-lg">{r.theme}</p>
-                        <p className="text-xs text-quest-gold-dark">{r.date}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-2xl font-serif text-quest-gold drop-shadow-md">{r.score}</div>
-                        {deletingRedacaoId === r.id ? (
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await deleteDoc(doc(db, 'redacoes', r.id));
-                                  setDeletingRedacaoId(null);
-                                } catch (err) {
-                                  console.error(err);
-                                }
-                              }}
-                              className="text-quest-red font-bold text-xs uppercase hover:underline"
-                            >
-                              Confirmar
-                            </button>
-                            <button 
-                              onClick={() => setDeletingRedacaoId(null)}
-                              className="text-quest-text-muted text-xs uppercase hover:underline"
-                            >
-                              Cancelar
-                            </button>
+                <div className="space-y-6">
+                  {/* CHART */}
+                  <div className="h-48 w-full bg-black/20 p-4 rounded border border-quest-gold-dark/20">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={redacoes.slice().reverse().map(r => ({ name: r.date.split('-').reverse().join('/'), score: r.score, theme: r.theme }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#8c7335" opacity={0.2} />
+                        <XAxis dataKey="name" stroke="#a39b8f" fontSize={12} tickMargin={10} />
+                        <YAxis stroke="#a39b8f" fontSize={12} domain={[0, 100]} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1814', borderColor: '#8c7335', color: '#e8e0d5' }}
+                          itemStyle={{ color: '#d4af37' }}
+                          formatter={(value: number) => [`${value} pts`, 'Nota']}
+                          labelFormatter={(label) => `Data: ${label}`}
+                        />
+                        <ReferenceLine y={70} stroke="#8b0000" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Aprovação (70)', fill: '#8b0000', fontSize: 12 }} />
+                        <Line type="monotone" dataKey="score" stroke="#d4af37" strokeWidth={2} dot={{ fill: '#1a1814', stroke: '#d4af37', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#d4af37' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="space-y-3">
+                    {redacoes.map(r => {
+                      const isApproved = r.score >= 70;
+                      return (
+                        <div key={r.id} className="flex justify-between items-center p-3 bg-quest-panel-light border border-quest-gold-dark/20 rounded">
+                          <div>
+                            <p className="text-quest-text text-lg">{r.theme}</p>
+                            <p className="text-xs text-quest-gold-dark">{r.date.split('-').reverse().join('/')}</p>
                           </div>
-                        ) : (
-                          <button 
-                            onClick={() => setDeletingRedacaoId(r.id)}
-                            className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
-                            title="Excluir Redação"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          <div className="flex items-center gap-4">
+                            <div className={`text-2xl font-serif drop-shadow-md ${isApproved ? 'text-green-500' : 'text-quest-red'}`}>{r.score}</div>
+                            {deletingRedacaoId === r.id ? (
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      await supabase.from('redacoes').delete().eq('id', r.id);
+                                      setDeletingRedacaoId(null);
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="text-quest-red font-bold text-xs uppercase hover:underline"
+                                >
+                                  Confirmar
+                                </button>
+                                <button 
+                                  onClick={() => setDeletingRedacaoId(null)}
+                                  className="text-quest-text-muted text-xs uppercase hover:underline"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <button 
+                                onClick={() => setDeletingRedacaoId(r.id)}
+                                className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
+                                title="Excluir Redação"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -910,12 +1261,18 @@ export default function App() {
             <Calendar size={20} className="text-quest-gold-dark" /> HISTÓRICO SEMANAL
           </h2>
           <Panel className="p-6 space-y-6">
-            {weeklyHistory.map((week, idx) => (
+            {dynamicWeeklyHistory.map((week, idx) => (
               <div key={idx} className="space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <div className="flex items-center gap-2 text-quest-text">
                     <Calendar size={14} className="text-quest-gold-dark" />
                     <span>{week.date}</span>
+                    {week.flashcards > 0 && (
+                      <span className="ml-2 flex items-center gap-1 text-quest-gold-dark opacity-80" title={`${week.flashcards} dias de flashcards concluídos`}>
+                        <BookOpen size={12} />
+                        {week.flashcards}
+                      </span>
+                    )}
                   </div>
                   <span className="font-mono text-quest-text-muted">{week.cycles}</span>
                 </div>
@@ -983,7 +1340,7 @@ export default function App() {
                     const isWarning = simulado.totalScore >= activeContest.warningScore && !isApproved;
                     
                     return (
-                      <Panel key={simulado.id} className="p-0 overflow-hidden">
+                      <Panel className="p-0 overflow-hidden">
                         <div className="p-4 border-b border-quest-gold-dark/30 flex justify-between items-start bg-black/20">
                           <div>
                             <h3 className="font-serif text-quest-gold text-lg tracking-widest uppercase">{simulado.title}</h3>
@@ -1003,7 +1360,7 @@ export default function App() {
                                 <button 
                                   onClick={async () => {
                                     try {
-                                      await deleteDoc(doc(db, 'detailed_simulados', simulado.id));
+                                      await supabase.from('detailed_simulados').delete().eq('id', simulado.id);
                                       setDeletingSimuladoId(null);
                                     } catch (err) {
                                       console.error(err);
@@ -1055,19 +1412,32 @@ export default function App() {
         <footer className="pt-16 pb-8 text-center relative">
           <div className="absolute top-8 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-quest-gold-dark to-transparent"></div>
           <div className="flex justify-center mb-6">
-            <Shield size={32} className="text-quest-gold-dark/40" />
+            <CrestLogo className="w-10 h-10 text-quest-gold-dark/40" />
           </div>
           <p className="font-serif italic text-quest-gold text-lg drop-shadow-md">
             "O dragão que guarda o tesouro não dorme — e nem o guerreiro que estuda"
           </p>
         </footer>
 
-      </main>
+      </motion.main>
 
       {/* SIMULADO MODAL */}
+      <AnimatePresence>
       {isSimuladoModalOpen && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+          >
             <div className="p-4 border-b-2 border-quest-gold-dark/30 flex justify-between items-center bg-black/40">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase flex items-center gap-2">
                 <Trophy size={20} className="text-quest-red" /> 
@@ -1239,20 +1609,45 @@ export default function App() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* TASK MODAL */}
+      <AnimatePresence>
       {selectedSubject && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+          >
             <div className="flex justify-between items-center p-4 border-b border-quest-gold-dark/50 bg-quest-red-dark">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase">{selectedSubject} - Tarefas</h2>
               <button onClick={() => setSelectedSubject(null)} className="text-quest-gold hover:text-white transition-colors">
                 <X size={24} />
               </button>
             </div>
+            {subjectTasks[selectedSubject] && (
+              <div className="px-4 pt-4 pb-2 border-b border-quest-gold-dark/20 bg-quest-panel">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-quest-text-muted uppercase tracking-widest font-serif">Progresso das Tarefas</span>
+                  <span className="text-xs text-quest-gold font-mono">
+                    {subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length} / {subjectTasks[selectedSubject].length}
+                  </span>
+                </div>
+                <ProgressBar progress={Math.round((subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length / subjectTasks[selectedSubject].length) * 100)} />
+              </div>
+            )}
             <div className="p-4 overflow-y-auto flex-1 space-y-2">
               {subjectTasks[selectedSubject] ? (
                 subjectTasks[selectedSubject].map(task => {
@@ -1293,14 +1688,28 @@ export default function App() {
                 <p className="text-quest-text-muted italic text-center py-8">Nenhuma tarefa detalhada para esta matéria ainda.</p>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* TASK CONTENT MODAL */}
+      <AnimatePresence>
       {selectedTaskContent && (
-        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
-          <div className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+          >
             <div className="flex justify-between items-center p-4 border-b border-quest-gold-dark/50 bg-quest-red-dark">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase truncate pr-4">{selectedTaskContent.title}</h2>
               <button onClick={() => setSelectedTaskContent(null)} className="text-quest-gold hover:text-white transition-colors flex-shrink-0">
@@ -1360,9 +1769,10 @@ export default function App() {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
