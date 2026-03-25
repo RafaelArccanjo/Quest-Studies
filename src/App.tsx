@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
   CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, X, Eye, Trash2, Settings,
@@ -487,17 +487,54 @@ export default function App() {
   const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
 
   const [isDbSetupError, setIsDbSetupError] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('admin@admin.com');
+  const [loginPassword, setLoginPassword] = useState('admin123');
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  const completedSubjects = Object.keys(subjectTasks).filter(subject => {
-    const tasks = subjectTasks[subject];
-    return tasks.length > 0 && tasks.every(task => !!taskCompletions[`${subject}_${task.id}`]);
-  });
+  const completedSubjects = useMemo(() => {
+    return Object.keys(subjectTasks).filter(subject => {
+      const tasks = subjectTasks[subject];
+      return tasks.length > 0 && tasks.every(task => !!taskCompletions[`${subject}_${task.id}`]);
+    });
+  }, [taskCompletions]);
 
-  const activeWeeklySchedule = weeklySchedule.filter(row => 
-    row.days.some(subject => !completedSubjects.includes(subject))
-  );
+  const activeWeeklySchedule = useMemo(() => {
+    return weeklySchedule.filter(row => 
+      row.days.some(subject => !completedSubjects.includes(subject))
+    );
+  }, [completedSubjects]);
 
-  const allContests = [...CONTESTS, ...userContests];
+  const allContests = useMemo(() => [...CONTESTS, ...userContests], [userContests]);
+
+  const chartData = useMemo(() => {
+    return [
+      ...simulados.map(s => ({
+        name: s.title || 'Simulado',
+        score: Number(s.score || 0),
+        target: Number(s.target_score || 80),
+        date: s.date || s.created_at || new Date().toISOString()
+      })),
+      ...detailedSimulados.map(s => ({
+        name: s.title || 'Simulado Detalhado',
+        score: Number(s.totalScore || 0),
+        target: Number(allContests.find(c => c.id === s.contestId)?.cutoffScore || 80),
+        date: s.date || s.created_at || new Date().toISOString()
+      }))
+    ].filter(d => {
+      const time = new Date(d.date).getTime();
+      return !isNaN(time);
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [simulados, detailedSimulados, allContests]);
+
+  // Debug log for chart data
+  useEffect(() => {
+    console.log("Chart Data state:", {
+      simuladosCount: simulados.length,
+      detailedSimuladosCount: detailedSimulados.length,
+      chartDataCount: chartData.length,
+      chartData: chartData
+    });
+  }, [simulados.length, detailedSimulados.length, chartData.length]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -633,7 +670,8 @@ export default function App() {
             contestId: s.contest_id,
             subjectScores: s.subject_scores,
             totalScore: s.total_score,
-            date: s.date
+            date: s.date,
+            created_at: s.created_at
           }));
           setDetailedSimulados(mappedSimulados);
         }
@@ -729,9 +767,140 @@ export default function App() {
     };
   }, [user]);
 
-  const [loginEmail, setLoginEmail] = useState('admin@admin.com');
-  const [loginPassword, setLoginPassword] = useState('admin123');
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const weekDates = useMemo(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - day + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+  }, []);
+
+  const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
+  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const currentWeekFlashcards = useMemo(() => {
+    return weekDates.filter(date => completions[`${date}_Flashcards`]).length;
+  }, [weekDates, completions]);
+
+  const currentWeekCycles = useMemo(() => {
+    return weekDates.reduce((acc, date, colIdx) => {
+      let count = 0;
+      weeklySchedule.forEach(row => {
+        if (completions[`${date}_${row.days[colIdx]}`]) count++;
+      });
+      return acc + count;
+    }, 0);
+  }, [weekDates, completions]);
+
+  const totalWeeklyCycles = useMemo(() => weeklySchedule.length * 7, []);
+  
+  const currentWeekProgress = useMemo(() => {
+    return totalWeeklyCycles > 0 ? Math.round((currentWeekCycles / totalWeeklyCycles) * 100) : 0;
+  }, [currentWeekCycles, totalWeeklyCycles]);
+  
+  const currentWeekLabel = useMemo(() => {
+    return `${weekDates[0].split('-').reverse().slice(0,2).join('/')} - ${weekDates[6].split('-').reverse().slice(0,2).join('/')}`;
+  }, [weekDates]);
+
+  const dynamicWeeklyHistory = useMemo(() => {
+    return [
+      { 
+        date: currentWeekLabel, 
+        cycles: `${currentWeekCycles}/${totalWeeklyCycles} ciclos`, 
+        progress: currentWeekProgress,
+        flashcards: currentWeekFlashcards
+      },
+      ...weeklyHistory.map(w => ({ ...w, flashcards: 0 }))
+    ];
+  }, [currentWeekLabel, currentWeekCycles, totalWeeklyCycles, currentWeekProgress, currentWeekFlashcards]);
+
+  const todaysMissions = useMemo(() => {
+    return weeklySchedule
+      .map(row => ({
+        subject: row.days[todayDayOfWeek],
+        time: row.time,
+        completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
+      }))
+      .filter(mission => !completedSubjects.includes(mission.subject));
+  }, [todayDayOfWeek, completions, todayDateStr, completedSubjects]);
+
+  const completedMissions = currentWeekCycles;
+  const totalMissions = totalWeeklyCycles;
+  const questProgress = currentWeekProgress;
+
+  const activeContest = useMemo(() => allContests.find(c => c.id === selectedContestId) || allContests[0], [allContests, selectedContestId]);
+
+  // Calculate Battle Table
+  const battleStats = useMemo(() => {
+    const stats: Record<string, { total: number, completed: number }> = {};
+    weeklySchedule.forEach(row => {
+      row.days.forEach((subject, colIdx) => {
+        if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
+        stats[subject].total += 1;
+        const dateStr = weekDates[colIdx];
+        if (completions[`${dateStr}_${subject}`]) {
+          stats[subject].completed += 1;
+        }
+      });
+    });
+    return stats;
+  }, [weekDates, completions]);
+
+  const dynamicBattleTable = useMemo(() => {
+    return Object.keys(battleStats)
+      .filter(subject => {
+        const stats = battleStats[subject];
+        const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        // Hide if 100% progress OR if all tasks are completed
+        return progress < 100 && !completedSubjects.includes(subject);
+      })
+      .map(subject => {
+        const stats = battleStats[subject];
+        const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        return {
+          subject,
+          conquest: `${stats.completed}/${stats.total}`,
+          progress
+        };
+      });
+  }, [battleStats, completedSubjects]);
+
+  const completedSubjectsData = useMemo(() => {
+    return completedSubjects.map(subject => {
+      const stats = battleStats[subject] || { completed: 0, total: 0 };
+      return {
+        subject,
+        conquest: `${stats.completed}/${stats.total}`,
+        progress: 100
+      };
+    });
+  }, [completedSubjects, battleStats]);
+
+  const addRedacao = async () => {
+    if (!newRedacao.theme.trim() || !user) return;
+    
+    // Handle comma instead of dot
+    const parsedScore = Number(String(newRedacao.score).replace(',', '.'));
+    const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
+
+    try {
+      const { error } = await supabase.from('redacoes').insert({
+        user_id: user.id,
+        theme: newRedacao.theme,
+        score: finalScore,
+        date: new Date().toISOString().split('T')[0]
+      });
+      
+      if (error) throw error;
+      setNewRedacao({ theme: '', score: 0 });
+    } catch (err: any) {
+      console.error("Erro ao salvar redação: " + err.message);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -780,15 +949,15 @@ export default function App() {
         
         // Determine if this is the last mission of the day being completed
         const todayDayOfWeek = new Date().getDay();
-        const todaysMissions = weeklySchedule.map(row => ({
+        const currentTodaysMissions = weeklySchedule.map(row => ({
           subject: row.days[todayDayOfWeek],
           completed: !!completions[`${dateStr}_${row.days[todayDayOfWeek]}`] || row.days[todayDayOfWeek] === subject
         }));
         
-        const otherMissions = todaysMissions.filter(m => m.subject !== subject);
+        const otherMissions = currentTodaysMissions.filter(m => m.subject !== subject);
         const allOthersCompleted = otherMissions.every(m => m.completed);
         
-        if (allOthersCompleted && todaysMissions.length > 0) {
+        if (allOthersCompleted && currentTodaysMissions.length > 0) {
           triggerDragonEncounter();
         } else {
           triggerMedievalEffects();
@@ -899,7 +1068,7 @@ export default function App() {
     
     const contest = allContests.find(c => c.id === newDetailedSimulado.contestId);
     if (!contest) return;
-
+ 
     let totalScore = 0;
     contest.subjects.forEach((sub: any) => {
       const score = newDetailedSimulado.subjectScores[sub.name] || 0;
@@ -943,6 +1112,13 @@ export default function App() {
     } catch (err: any) {
       console.error("Erro ao registrar concurso: " + err.message);
     }
+  };
+
+  const getTaskContent = (subject: string, taskId: string) => {
+    if (subject === 'Conhecimentos Bancários') {
+      return cbTasksContent[taskId] || 'Conteúdo detalhado não disponível para esta tarefa no momento.';
+    }
+    return 'Conteúdo detalhado não disponível para esta tarefa no momento.';
   };
 
   if (loadingAuth) {
@@ -1006,133 +1182,6 @@ export default function App() {
       </div>
     );
   }
-
-  const addRedacao = async () => {
-    if (!newRedacao.theme.trim() || !user) return;
-    
-    // Handle comma instead of dot
-    const parsedScore = Number(String(newRedacao.score).replace(',', '.'));
-    const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
-
-    try {
-      const { error } = await supabase.from('redacoes').insert({
-        user_id: user.id,
-        theme: newRedacao.theme,
-        score: finalScore,
-        date: new Date().toISOString().split('T')[0]
-      });
-      
-      if (error) throw error;
-      setNewRedacao({ theme: '', score: 0 });
-    } catch (err: any) {
-      console.error("Erro ao salvar redação: " + err.message);
-    }
-  };
-
-  const getWeekDates = () => {
-    const today = new Date();
-    const day = today.getDay();
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - day + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates;
-  };
-
-  const getTaskContent = (subject: string, taskId: string) => {
-    if (subject === 'Conhecimentos Bancários') {
-      return cbTasksContent[taskId] || 'Conteúdo detalhado não disponível para esta tarefa no momento.';
-    }
-    return 'Conteúdo detalhado não disponível para esta tarefa no momento.';
-  };
-
-  const weekDates = getWeekDates();
-  const todayDayOfWeek = new Date().getDay();
-  const todayDateStr = new Date().toISOString().split('T')[0];
-
-  const currentWeekFlashcards = weekDates.filter(date => completions[`${date}_Flashcards`]).length;
-  const currentWeekCycles = weekDates.reduce((acc, date, colIdx) => {
-    let count = 0;
-    weeklySchedule.forEach(row => {
-      if (completions[`${date}_${row.days[colIdx]}`]) count++;
-    });
-    return acc + count;
-  }, 0);
-  const totalWeeklyCycles = weeklySchedule.length * 7;
-  const currentWeekProgress = Math.round((currentWeekCycles / totalWeeklyCycles) * 100);
-  
-  const currentWeekLabel = `${weekDates[0].split('-').reverse().slice(0,2).join('/')} - ${weekDates[6].split('-').reverse().slice(0,2).join('/')}`;
-
-  const dynamicWeeklyHistory = [
-    { 
-      date: currentWeekLabel, 
-      cycles: `${currentWeekCycles}/${totalWeeklyCycles} ciclos`, 
-      progress: currentWeekProgress,
-      flashcards: currentWeekFlashcards
-    },
-    ...weeklyHistory.map(w => ({ ...w, flashcards: 0 }))
-  ];
-
-  const todaysMissions = weeklySchedule
-    .map(row => ({
-      subject: row.days[todayDayOfWeek],
-      time: row.time,
-      completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
-    }))
-    .filter(mission => !completedSubjects.includes(mission.subject));
-
-  const completedMissions = currentWeekCycles;
-  const totalMissions = totalWeeklyCycles;
-  const questProgress = currentWeekProgress;
-
-  const chartData = detailedSimulados.map(s => ({
-    name: s.title,
-    score: s.totalScore,
-    target: allContests.find(c => c.id === s.contestId)?.cutoffScore || 80
-  }));
-
-  const activeContest = allContests.find(c => c.id === selectedContestId) || allContests[0];
-
-  // Calculate Battle Table
-  const battleStats: Record<string, { total: number, completed: number }> = {};
-  weeklySchedule.forEach(row => {
-    row.days.forEach((subject, colIdx) => {
-      if (!battleStats[subject]) battleStats[subject] = { total: 0, completed: 0 };
-      battleStats[subject].total += 1;
-      const dateStr = weekDates[colIdx];
-      if (completions[`${dateStr}_${subject}`]) {
-        battleStats[subject].completed += 1;
-      }
-    });
-  });
-
-  const dynamicBattleTable = Object.keys(battleStats)
-    .filter(subject => {
-      const stats = battleStats[subject];
-      const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-      // Hide if 100% progress OR if all tasks are completed
-      return progress < 100 && !completedSubjects.includes(subject);
-    })
-    .map(subject => {
-      const stats = battleStats[subject];
-      const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-      return {
-        subject,
-        conquest: `${stats.completed}/${stats.total}`,
-        progress
-      };
-    });
-
-  const completedSubjectsData = completedSubjects.map(subject => {
-    const stats = battleStats[subject] || { completed: 0, total: 0 };
-    return {
-      subject,
-      conquest: `${stats.completed}/${stats.total}`,
-      progress: 100
-    };
-  });
 
   return (
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white relative">
@@ -1548,7 +1597,7 @@ export default function App() {
               <div className="flex-1 p-4 min-h-[250px]">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                       <XAxis dataKey="name" stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} />
                       <YAxis stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} />
