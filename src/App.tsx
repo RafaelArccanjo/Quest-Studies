@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
-  CheckSquare, Square, TrendingUp, Calendar, Shield, Plus, X, Eye, Trash2, Settings,
+  CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, X, Eye, Trash2, Settings,
   Coins, Crown, Scroll, Sparkles
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -142,19 +142,19 @@ const Panel = ({ children, className = '' }: { children: React.ReactNode, classN
 
 const PanelHeader = ({ title, icon: Icon }: { title: string, icon?: React.ElementType }) => (
   <div className="bg-quest-red-dark border-b-2 border-quest-gold-dark px-4 py-3 flex items-center justify-center relative shadow-md">
-    <div className="absolute left-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_#d4af37]"></div>
+    <div className="absolute left-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_var(--color-quest-gold)]"></div>
     <div className="flex items-center gap-2 text-quest-gold font-serif tracking-widest text-sm uppercase text-shadow-sm">
       {Icon && <Icon size={18} />}
       <span>{title}</span>
     </div>
-    <div className="absolute right-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_#d4af37]"></div>
+    <div className="absolute right-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_var(--color-quest-gold)]"></div>
   </div>
 );
 
 const ProgressBar = ({ progress, className = '' }: { progress: number, className?: string }) => (
   <div className={`h-2 bg-quest-panel-light border border-quest-gold-dark/50 rounded-full overflow-hidden shadow-inner ${className}`}>
     <div 
-      className="h-full bg-gradient-to-r from-quest-red-dark via-quest-red to-orange-500 shadow-[0_0_10px_rgba(255,0,0,0.5)] transition-all duration-700 ease-out"
+      className="h-full bg-gradient-to-r from-quest-red-dark via-quest-red to-quest-gold shadow-[0_0_10px_rgba(58,90,64,0.5)] transition-all duration-700 ease-out"
       style={{ width: `${progress}%` }}
     ></div>
   </div>
@@ -211,7 +211,7 @@ const MedievalRain = () => {
             ease: "linear",
             repeat: 0
           }}
-          className="absolute text-quest-gold drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]"
+          className="absolute text-quest-gold drop-shadow-[0_0_8px_rgba(184,155,94,0.6)]"
         >
           <drop.Icon size={drop.size} />
         </motion.div>
@@ -251,7 +251,7 @@ const DragonEncounter = () => {
           className="absolute right-[80%] h-32 w-96 bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-md rounded-full"
           style={{ filter: 'drop-shadow(0 0 20px rgba(255,100,0,0.8))' }}
         />
-        <DragonIcon className="w-48 h-48 text-red-600 drop-shadow-[0_0_30px_rgba(255,0,0,0.8)]" />
+        <DragonIcon className="w-48 h-48 text-green-800 drop-shadow-[0_0_30px_rgba(58,90,64,0.8)]" />
       </motion.div>
 
       {/* Knight */}
@@ -266,7 +266,7 @@ const DragonEncounter = () => {
         transition={{ duration: 7, ease: "easeInOut" }}
         className="absolute left-1/2 top-1/2 -translate-y-1/2"
       >
-        <KnightIcon className="w-40 h-40 text-quest-gold drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] transform -scale-x-100" />
+        <KnightIcon className="w-40 h-40 text-quest-gold drop-shadow-[0_0_20px_rgba(184,155,94,0.8)] transform -scale-x-100" />
       </motion.div>
       
       {/* Clash Flash */}
@@ -348,6 +348,13 @@ export default function App() {
   const [deletingSimuladoId, setDeletingSimuladoId] = useState<string | null>(null);
   const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
 
+  const [isDbSetupError, setIsDbSetupError] = useState(false);
+
+  const completedSubjects = Object.keys(subjectTasks).filter(subject => {
+    const tasks = subjectTasks[subject];
+    return tasks.length > 0 && tasks.every(task => !!taskCompletions[`${subject}_${task.id}`]);
+  });
+
   const allContests = [...CONTESTS, ...userContests];
 
   useEffect(() => {
@@ -376,6 +383,9 @@ export default function App() {
         .eq('user_id', user.id);
       
       if (error) {
+        if (error.message?.includes('schema cache')) {
+          setIsDbSetupError(true);
+        }
         console.error("Erro ao buscar missões:", error);
         return;
       }
@@ -605,7 +615,8 @@ export default function App() {
     
     try {
       if (isCompleted) {
-        await supabase.from('completions').delete().eq('id', docId);
+        const { error } = await supabase.from('completions').delete().eq('id', docId);
+        if (error) throw error;
         // Optimistic update or manual refetch
         setCompletions(prev => {
           const next = { ...prev };
@@ -614,12 +625,13 @@ export default function App() {
         });
       } else {
         playClickSound();
-        await supabase.from('completions').insert({
+        const { error } = await supabase.from('completions').upsert({
           id: docId,
           user_id: user.id,
           date: dateStr,
           subject: subject
         });
+        if (error) throw error;
         
         // Optimistic update
         setCompletions(prev => ({ ...prev, [`${dateStr}_${subject}`]: true }));
@@ -641,7 +653,11 @@ export default function App() {
         }
       }
     } catch (err: any) {
-      console.error("Erro ao atualizar missão: " + err.message);
+      if (err.message?.includes('schema cache')) {
+        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+      } else {
+        console.error("Erro ao atualizar missão: " + err.message);
+      }
     }
   };
 
@@ -652,7 +668,8 @@ export default function App() {
     
     try {
       if (isCompleted) {
-        await supabase.from('completions').delete().eq('id', docId);
+        const { error } = await supabase.from('completions').delete().eq('id', docId);
+        if (error) throw error;
         setCompletions(prev => {
           const next = { ...prev };
           delete next[`${dateStr}_Flashcards`];
@@ -660,12 +677,13 @@ export default function App() {
         });
       } else {
         playClickSound();
-        await supabase.from('completions').insert({
+        const { error } = await supabase.from('completions').upsert({
           id: docId,
           user_id: user.id,
           date: dateStr,
           subject: 'Flashcards'
         });
+        if (error) throw error;
         setCompletions(prev => ({ ...prev, [`${dateStr}_Flashcards`]: true }));
         
         // Minimalist flashcard sound (a soft page turn / click)
@@ -674,7 +692,11 @@ export default function App() {
         audio.play().catch(e => console.log("Audio play failed", e));
       }
     } catch (err: any) {
-      console.error("Erro ao atualizar flashcards: " + err.message);
+      if (err.message?.includes('schema cache')) {
+        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+      } else {
+        console.error("Erro ao atualizar flashcards: " + err.message);
+      }
     }
   };
 
@@ -684,7 +706,8 @@ export default function App() {
     
     try {
       if (isCompleted) {
-        await supabase.from('task_completions').delete().eq('id', docId);
+        const { error } = await supabase.from('task_completions').delete().eq('id', docId);
+        if (error) throw error;
         setTaskCompletions(prev => {
           const next = { ...prev };
           delete next[`${subject}_${taskId}`];
@@ -692,17 +715,22 @@ export default function App() {
         });
       } else {
         playClickSound();
-        await supabase.from('task_completions').insert({
+        const { error } = await supabase.from('task_completions').upsert({
           id: docId,
           user_id: user.id,
           subject: subject,
           task_id: taskId
         });
+        if (error) throw error;
         setTaskCompletions(prev => ({ ...prev, [`${subject}_${taskId}`]: true }));
         triggerMedievalEffects();
       }
     } catch (err: any) {
-      console.error("Erro ao atualizar tarefa: " + err.message);
+      if (err.message?.includes('schema cache')) {
+        console.error("ERRO CRÍTICO: A tabela 'task_completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+      } else {
+        console.error("Erro ao atualizar tarefa: " + err.message);
+      }
     }
   };
 
@@ -789,7 +817,7 @@ export default function App() {
             ease: "easeInOut" 
           }}
         >
-          <CrestLogo className="w-32 h-32 text-quest-gold drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] mb-6" />
+          <CrestLogo className="w-32 h-32 text-quest-gold drop-shadow-[0_0_20px_rgba(184,155,94,0.8)] mb-6" />
         </motion.div>
         <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] animate-pulse">
           FORJANDO O REINO...
@@ -802,7 +830,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Panel className="w-full max-w-md p-8 text-center">
-          <CrestLogo className="w-24 h-24 mx-auto text-quest-gold mb-4 drop-shadow-[0_0_15px_rgba(212,175,55,0.6)]" />
+          <CrestLogo className="w-24 h-24 mx-auto text-quest-gold mb-4 drop-shadow-[0_0_15px_rgba(184,155,94,0.6)]" />
           <h1 className="font-serif text-3xl text-quest-gold mb-2">Quest Studies</h1>
           <p className="text-quest-text-muted mb-8 italic">Identifique-se, viajante.</p>
           
@@ -905,11 +933,13 @@ export default function App() {
     ...weeklyHistory.map(w => ({ ...w, flashcards: 0 }))
   ];
 
-  const todaysMissions = weeklySchedule.map(row => ({
-    subject: row.days[todayDayOfWeek],
-    time: row.time,
-    completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
-  }));
+  const todaysMissions = weeklySchedule
+    .map(row => ({
+      subject: row.days[todayDayOfWeek],
+      time: row.time,
+      completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
+    }));
+    // .filter(mission => !completedSubjects.includes(mission.subject));
 
   const completedMissions = currentWeekCycles;
   const totalMissions = totalWeeklyCycles;
@@ -936,13 +966,24 @@ export default function App() {
     });
   });
 
-  const dynamicBattleTable = Object.keys(battleStats).map(subject => {
-    const stats = battleStats[subject];
-    const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+  const dynamicBattleTable = Object.keys(battleStats)
+    // .filter(subject => !completedSubjects.includes(subject))
+    .map(subject => {
+      const stats = battleStats[subject];
+      const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+      return {
+        subject,
+        conquest: `${stats.completed}/${stats.total}`,
+        progress
+      };
+    });
+
+  const completedSubjectsData = completedSubjects.map(subject => {
+    const stats = battleStats[subject] || { completed: 0, total: 0 };
     return {
       subject,
       conquest: `${stats.completed}/${stats.total}`,
-      progress
+      progress: 100
     };
   });
 
@@ -950,12 +991,23 @@ export default function App() {
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white">
       {showRain && <MedievalRain />}
       {showDragon && <DragonEncounter />}
+      
+      {isDbSetupError && (
+        <div className="max-w-6xl mx-auto mb-6 p-4 bg-green-900/80 border-2 border-quest-red text-white rounded-lg shadow-[0_0_20px_rgba(58,90,64,0.5)] flex flex-col items-center gap-3 text-center">
+          <ShieldAlert size={32} className="text-quest-gold animate-pulse" />
+          <div>
+            <h3 className="font-serif text-lg tracking-widest text-quest-gold">ERRO DE CONFIGURAÇÃO DO REINO</h3>
+            <p className="text-sm italic">As tabelas do banco de dados não foram encontradas. Por favor, execute o script SQL de migração no seu painel do Supabase para inicializar o reino.</p>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center mb-10 border-b-2 border-quest-gold-dark/50 pb-6 relative">
         <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-gradient-to-r from-transparent via-quest-gold to-transparent"></div>
         
         <div className="flex items-center gap-4 mb-4 md:mb-0">
-          <div className="w-14 h-14 rounded-full bg-quest-red-dark border-2 border-quest-gold flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] relative overflow-hidden">
+          <div className="w-14 h-14 rounded-full bg-quest-red-dark border-2 border-quest-gold flex items-center justify-center shadow-[0_0_20px_rgba(184, 155, 94, 0.4)] relative overflow-hidden">
             <div className="absolute inset-0 bg-black/20"></div>
             <CrestLogo className="w-8 h-8 text-quest-gold relative z-10" />
           </div>
@@ -968,19 +1020,19 @@ export default function App() {
         <div className="flex items-center gap-6 text-sm font-serif tracking-wider text-quest-gold-dark">
           <button 
             onClick={() => setActiveTab('dashboard')} 
-            className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(212,175,55,0.8)] ${activeTab === 'dashboard' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
+            className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)] ${activeTab === 'dashboard' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
           >
             <Shield size={18} />
             DASHBOARD
           </button>
           <button 
             onClick={() => setActiveTab('simulados')} 
-            className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(212,175,55,0.8)] ${activeTab === 'simulados' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
+            className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)] ${activeTab === 'simulados' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
           >
             <Trophy size={18} />
             SIMULADOS
           </button>
-          <button onClick={handleLogout} className="flex items-center gap-2 hover:text-quest-gold transition-colors hover:drop-shadow-[0_0_5px_rgba(212,175,55,0.8)]">
+          <button onClick={handleLogout} className="flex items-center gap-2 hover:text-quest-gold transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)]">
             <LogOut size={18} />
             SAIR DO REINO
           </button>
@@ -1052,10 +1104,13 @@ export default function App() {
                       {mission.completed ? <CheckSquare className="text-quest-red" size={24} /> : <Square size={24} />}
                     </motion.button>
                     <span 
-                      className={`text-lg cursor-pointer flex-1 ${mission.completed ? 'line-through text-quest-text-muted' : 'text-quest-text hover:text-quest-gold'}`}
+                      className={`text-lg cursor-pointer flex-1 flex items-center gap-2 ${mission.completed ? 'line-through text-quest-text-muted' : 'text-quest-text hover:text-quest-gold'}`}
                       onClick={() => setSelectedSubject(mission.subject)}
                     >
                       {mission.subject}
+                      {completedSubjects.includes(mission.subject) && (
+                        <span className="text-[10px] bg-quest-gold/20 text-quest-gold px-2 py-0.5 rounded-full border border-quest-gold/30 font-serif tracking-tighter">100% VENCIDA</span>
+                      )}
                     </span>
                   </div>
                   <span className="text-sm text-quest-gold-dark">{mission.time}</span>
@@ -1105,10 +1160,16 @@ export default function App() {
                     {row.days.map((subject, colIdx) => {
                       const dateStr = weekDates[colIdx];
                       const isChecked = !!completions[`${dateStr}_${subject}`];
+                      const isCompleted = completedSubjects.includes(subject);
                       return (
-                        <td key={colIdx} className="p-4 border-r border-quest-gold-dark/20 last:border-0">
-                          <div className={`flex flex-col items-center justify-center gap-2 transition-opacity ${isChecked ? 'opacity-40' : 'opacity-100'}`}>
-                            <span className={isChecked ? 'text-quest-text-muted line-through' : 'text-quest-text'}>{subject}</span>
+                        <td key={colIdx} className={`p-4 border-r border-quest-gold-dark/20 last:border-0 cursor-pointer hover:bg-quest-panel-light/50 transition-colors ${isCompleted ? 'bg-quest-gold/10' : ''}`} onClick={() => setSelectedSubject(subject)}>
+                          <div className={`flex flex-col items-center justify-center gap-1 transition-opacity ${isChecked || isCompleted ? 'opacity-40' : 'opacity-100'}`}>
+                            <span className={isChecked || isCompleted ? 'text-quest-text-muted line-through' : 'text-quest-text'}>
+                              {subject}
+                            </span>
+                            {isCompleted && (
+                              <span className="text-[9px] text-quest-gold font-bold tracking-tighter">100% VENCIDA</span>
+                            )}
                           </div>
                         </td>
                       );
@@ -1137,19 +1198,43 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="text-xs">
-                  {dynamicBattleTable.map((row, idx) => (
-                    <tr key={idx} className="border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50">
-                      <td className="p-4 border-r border-quest-gold-dark/20 text-quest-text">{row.subject}</td>
-                      <td className="p-4 border-r border-quest-gold-dark/20 text-center font-mono text-quest-text-muted">{row.conquest}</td>
-                      <td className="p-4 flex items-center gap-3">
-                        <ProgressBar progress={row.progress} className="flex-1" />
-                        <span className="font-mono text-quest-text-muted w-8 text-right">{row.progress}%</span>
+                  {dynamicBattleTable.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-quest-text-muted italic">
+                        {completedSubjectsData.length > 0 
+                          ? "Todas as matérias desta jornada foram vencidas! Veja o Salão dos Heróis abaixo."
+                          : "Nenhuma matéria em batalha no momento."}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    dynamicBattleTable.map((row, idx) => (
+                      <tr key={idx} className={`border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50 cursor-pointer ${completedSubjects.includes(row.subject) ? 'bg-quest-gold/5' : ''}`} onClick={() => setSelectedSubject(row.subject)}>
+                        <td className="p-4 border-r border-quest-gold-dark/20 text-quest-text">
+                          <div className="flex items-center gap-2">
+                            {row.subject}
+                            {completedSubjects.includes(row.subject) && (
+                              <span className="text-[9px] bg-quest-gold/20 text-quest-gold px-1.5 py-0.5 rounded-full border border-quest-gold/30 font-serif tracking-tighter">100%</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 border-r border-quest-gold-dark/20 text-center font-mono text-quest-text-muted">{row.conquest}</td>
+                        <td className="p-4 flex items-center gap-3">
+                          <ProgressBar progress={row.progress} className="flex-1" />
+                          <span className="font-mono text-quest-text-muted w-8 text-right">{row.progress}%</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+            {completedSubjectsData.length > 0 && dynamicBattleTable.length > 0 && (
+              <div className="p-2 text-center border-t border-quest-gold-dark/10">
+                <p className="text-[10px] text-quest-gold-dark italic uppercase tracking-widest">
+                  Matérias 100% concluídas são movidas para o Salão dos Heróis no final da página.
+                </p>
+              </div>
+            )}
           </Panel>
         </div>
 
@@ -1217,7 +1302,7 @@ export default function App() {
                             <p className="text-xs text-quest-gold-dark">{r.date.split('-').reverse().join('/')}</p>
                           </div>
                           <div className="flex items-center gap-4">
-                            <div className={`text-2xl font-serif drop-shadow-md ${isApproved ? 'text-green-500' : 'text-quest-red'}`}>{r.score}</div>
+                            <div className={`text-2xl font-serif drop-shadow-md ${isApproved ? 'text-green-500' : 'text-quest-gold'}`}>{r.score}</div>
                             {deletingRedacaoId === r.id ? (
                               <div className="flex items-center gap-2">
                                 <button 
@@ -1334,7 +1419,7 @@ export default function App() {
                   className="bg-transparent border border-quest-gold-dark/50 text-quest-gold text-xs p-1 rounded font-serif"
                 >
                   {allContests.map(c => (
-                    <option key={c.id} value={c.id} className="bg-[#1a1814]">{c.name}</option>
+                    <option key={c.id} value={c.id} className="bg-quest-panel">{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -1403,6 +1488,46 @@ export default function App() {
             ))}
           </Panel>
         </div>
+
+        {/* MATÉRIAS CONCLUÍDAS */}
+        {completedSubjectsData.length > 0 && (
+          <div className="pt-4">
+            <h2 className="font-serif text-quest-gold text-lg tracking-widest uppercase mb-4 flex items-center gap-2">
+              <Sparkles size={20} className="text-quest-gold animate-pulse" /> MATÉRIAS CONCLUÍDAS (100%)
+            </h2>
+            <Panel className="border-quest-gold/50 shadow-[0_0_15px_rgba(184,155,94,0.2)]">
+              <PanelHeader title="SALÃO DOS HERÓIS — MATÉRIAS VENCIDAS" />
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {completedSubjectsData.map((row, idx) => (
+                  <motion.div 
+                    key={idx}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedSubject(row.subject)}
+                    className="bg-quest-panel-light/30 border border-quest-gold/30 p-4 rounded-sm flex items-center justify-between relative overflow-hidden group cursor-pointer hover:bg-quest-panel-light/50 transition-colors"
+                  >
+                    <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-30 transition-opacity">
+                      <Trophy size={40} className="text-quest-gold" />
+                    </div>
+                    <div className="relative z-10">
+                      <h3 className="text-quest-gold font-serif tracking-widest text-sm uppercase mb-1">{row.subject}</h3>
+                      <p className="text-xs text-quest-text-muted italic">Missão Cumprida!</p>
+                    </div>
+                    <div className="text-right relative z-10">
+                      <div className="flex items-center gap-2 text-quest-gold mb-1">
+                        <Crown size={16} />
+                        <span className="font-mono text-lg">100%</span>
+                      </div>
+                      <p className="text-[10px] text-quest-gold-dark uppercase tracking-tighter">Conquista: {row.conquest}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        )}
           </>
         )}
 
@@ -1424,7 +1549,7 @@ export default function App() {
                     setSimuladoModalTab('novo_concurso');
                     setIsSimuladoModalOpen(true);
                   }} 
-                  className="medieval-button flex items-center gap-2 bg-[#1a1814] hover:bg-[#2a2824]"
+                  className="medieval-button flex items-center gap-2 bg-quest-panel hover:bg-quest-panel-light"
                 >
                   <Settings size={18} /> GERENCIAR CONCURSOS
                 </button>
@@ -1467,10 +1592,10 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <p className={`font-serif text-4xl ${isApproved ? 'text-green-500' : isWarning ? 'text-yellow-500' : 'text-red-500'}`}>
+                              <p className={`font-serif text-4xl ${isApproved ? 'text-quest-gold' : isWarning ? 'text-yellow-500' : 'text-red-400'}`}>
                                 {simulado.totalScore.toFixed(1)}
                               </p>
-                              <p className={`text-xs tracking-widest uppercase ${isApproved ? 'text-green-500' : isWarning ? 'text-yellow-500' : 'text-red-500'}`}>
+                              <p className={`text-xs tracking-widest uppercase ${isApproved ? 'text-quest-gold' : isWarning ? 'text-yellow-500' : 'text-red-400'}`}>
                                 {isApproved ? 'APROVADO' : 'REPROVADO'}
                               </p>
                             </div>
@@ -1514,7 +1639,7 @@ export default function App() {
                           {activeContest.subjects.map((sub: any, idx: number) => {
                             const score = simulado.subjectScores[sub.name] || 0;
                             return (
-                              <div key={idx} className="bg-[#1a1814] p-4 flex flex-col items-center justify-center text-center">
+                              <div key={idx} className="bg-quest-panel p-4 flex flex-col items-center justify-center text-center">
                                 <p className="text-xs text-quest-gold-dark mb-1 font-serif">{sub.name}</p>
                                 <p className="font-serif text-xl text-quest-gold">{score}/{sub.questions}</p>
                               </div>
@@ -1557,11 +1682,11 @@ export default function App() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            className="bg-quest-panel border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full max-h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="p-4 border-b-2 border-quest-gold-dark/30 flex justify-between items-center bg-black/40">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase flex items-center gap-2">
-                <Trophy size={20} className="text-quest-red" /> 
+                <Trophy size={20} className="text-quest-gold" /> 
                 ÁREA DE SIMULADOS
               </h2>
               <button onClick={() => setIsSimuladoModalOpen(false)} className="text-quest-text-muted hover:text-quest-red transition-colors">
@@ -1571,13 +1696,13 @@ export default function App() {
             
             <div className="flex border-b border-quest-gold-dark/30">
               <button 
-                className={`flex-1 py-3 font-serif tracking-widest uppercase text-sm transition-colors ${simuladoModalTab === 'registrar' ? 'bg-quest-red-dark/20 text-quest-gold border-b-2 border-quest-red' : 'text-quest-text-muted hover:bg-white/5'}`}
+                className={`flex-1 py-3 font-serif tracking-widest uppercase text-sm transition-colors ${simuladoModalTab === 'registrar' ? 'bg-quest-red-dark/20 text-quest-gold border-b-2 border-quest-gold' : 'text-quest-text-muted hover:bg-white/5'}`}
                 onClick={() => setSimuladoModalTab('registrar')}
               >
                 Registrar Nota
               </button>
               <button 
-                className={`flex-1 py-3 font-serif tracking-widest uppercase text-sm transition-colors ${simuladoModalTab === 'novo_concurso' ? 'bg-quest-red-dark/20 text-quest-gold border-b-2 border-quest-red' : 'text-quest-text-muted hover:bg-white/5'}`}
+                className={`flex-1 py-3 font-serif tracking-widest uppercase text-sm transition-colors ${simuladoModalTab === 'novo_concurso' ? 'bg-quest-red-dark/20 text-quest-gold border-b-2 border-quest-gold' : 'text-quest-text-muted hover:bg-white/5'}`}
                 onClick={() => setSimuladoModalTab('novo_concurso')}
               >
                 Novo Concurso
@@ -1750,7 +1875,7 @@ export default function App() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            className="bg-quest-panel border-2 border-quest-gold-dark rounded-sm max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="flex justify-between items-center p-4 border-b border-quest-gold-dark/50 bg-quest-red-dark">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase">{selectedSubject} - Tarefas</h2>
@@ -1833,7 +1958,7 @@ export default function App() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-[#1a1814] border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            className="bg-quest-panel border-2 border-quest-gold-dark rounded-sm max-w-4xl w-full h-[90vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="flex justify-between items-center p-4 border-b border-quest-gold-dark/50 bg-quest-red-dark">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase truncate pr-4">{selectedTaskContent.title}</h2>

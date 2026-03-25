@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  --color-quest-bg: #0d0d0d;
-  --color-quest-panel: #1a1814;
-  --color-quest-panel-light: #26231d;
-  --color-quest-gold: #d4af37;
-  --color-quest-gold-dark: #8c7335;
-  --color-quest-red: #8b0000;
-  --color-quest-red-dark: #4a0404;
-  --color-quest-text: #e8e0d5;
-  --color-quest-text-muted: #a39b8f;
+  --color-quest-bg: #0a0f0a;
+  --color-quest-panel: #141d14;
+  --color-quest-panel-light: #1e2b1e;
+  --color-quest-gold: #b89b5e;
+  --color-quest-gold-dark: #6e5d38;
+  --color-quest-red: #3a5a40;
+  --color-quest-red-dark: #1b2e1b;
+  --color-quest-text: #d8e3d8;
+  --color-quest-text-muted: #8a9a8a;
   
   --font-serif: 'Cinzel Decorative', serif;
   --font-sans: 'MedievalSharp', cursive;
@@ -17,7 +17,7 @@
 
 body {
   background-color: var(--color-quest-bg);
-  background-image: radial-gradient(circle at center, #1a1814 0%, #0d0d0d 100%);
+  background-image: radial-gradient(circle at center, #141d14 0%, #0a0f0a 100%);
   color: var(--color-quest-text);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -51,7 +51,7 @@ body {
   content: '';
   position: absolute;
   top: 2px; left: 2px; right: 2px; bottom: 2px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgba(184, 155, 94, 0.2);
   pointer-events: none;
 }
 
@@ -67,7 +67,7 @@ body {
 
 .medieval-input:focus {
   border-color: var(--color-quest-gold);
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 0 10px rgba(184, 155, 94, 0.3);
 }
 
 .medieval-button {
@@ -84,8 +84,8 @@ body {
 }
 
 .medieval-button:hover {
-  background: linear-gradient(to bottom, #a30000, var(--color-quest-red));
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+  background: linear-gradient(to bottom, #4a7a50, var(--color-quest-red));
+  box-shadow: 0 0 15px rgba(184, 155, 94, 0.4);
   transform: translateY(-1px);
 }
 
