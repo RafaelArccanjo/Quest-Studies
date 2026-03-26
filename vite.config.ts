@@ -8,7 +8,7 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss()],
     optimizeDeps: {
-      include: ['motion/react', 'framer-motion', 'react-pdf']
+      include: ['motion/react', 'framer-motion', 'react-pdf', 'pdfjs-dist']
     },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

@@ -4,7 +4,7 @@ import {
   CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, X, Eye, Trash2, Settings,
   Crown, Scroll, Sparkles
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 import { cbTasksContent } from './data/cbTasksContent';
@@ -482,9 +482,11 @@ export default function App() {
   const [newDetailedSimulado, setNewDetailedSimulado] = useState({ title: '', contestId: 'bb', subjectScores: {} as Record<string, number> });
   const [newContest, setNewContest] = useState({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
   const [newRedacao, setNewRedacao] = useState({ theme: '', score: 0 });
+  const [editingRedacao, setEditingRedacao] = useState<any | null>(null);
   const [selectedContestId, setSelectedContestId] = useState('bb');
   const [deletingSimuladoId, setDeletingSimuladoId] = useState<string | null>(null);
   const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
+  const [editingSimulado, setEditingSimulado] = useState<any | null>(null);
 
   const [isDbSetupError, setIsDbSetupError] = useState(false);
   const [loginEmail, setLoginEmail] = useState('admin@admin.com');
@@ -888,14 +890,23 @@ export default function App() {
     const finalScore = isNaN(parsedScore) ? 0 : parsedScore;
 
     try {
-      const { error } = await supabase.from('redacoes').insert({
-        user_id: user.id,
-        theme: newRedacao.theme,
-        score: finalScore,
-        date: new Date().toISOString().split('T')[0]
-      });
+      if (editingRedacao) {
+        const { error } = await supabase.from('redacoes').update({
+          theme: newRedacao.theme,
+          score: finalScore,
+        }).eq('id', editingRedacao.id);
+        if (error) throw error;
+        setEditingRedacao(null);
+      } else {
+        const { error } = await supabase.from('redacoes').insert({
+          user_id: user.id,
+          theme: newRedacao.theme,
+          score: finalScore,
+          date: new Date().toISOString().split('T')[0]
+        });
+        if (error) throw error;
+      }
       
-      if (error) throw error;
       setNewRedacao({ theme: '', score: 0 });
     } catch (err: any) {
       console.error("Erro ao salvar redação: " + err.message);
@@ -1076,14 +1087,26 @@ export default function App() {
     });
 
     try {
-      await supabase.from('detailed_simulados').insert({
-        user_id: user.id,
-        title: newDetailedSimulado.title,
-        contest_id: newDetailedSimulado.contestId,
-        subject_scores: newDetailedSimulado.subjectScores,
-        total_score: totalScore,
-        date: new Date().toISOString().split('T')[0]
-      });
+      if (editingSimulado) {
+        const { error } = await supabase.from('detailed_simulados').update({
+          title: newDetailedSimulado.title,
+          contest_id: newDetailedSimulado.contestId,
+          subject_scores: newDetailedSimulado.subjectScores,
+          total_score: totalScore,
+        }).eq('id', editingSimulado.id);
+        if (error) throw error;
+        setEditingSimulado(null);
+      } else {
+        const { error } = await supabase.from('detailed_simulados').insert({
+          user_id: user.id,
+          title: newDetailedSimulado.title,
+          contest_id: newDetailedSimulado.contestId,
+          subject_scores: newDetailedSimulado.subjectScores,
+          total_score: totalScore,
+          date: new Date().toISOString().split('T')[0]
+        });
+        if (error) throw error;
+      }
       setNewDetailedSimulado({ title: '', contestId: 'bb', subjectScores: {} });
       setIsSimuladoModalOpen(false);
     } catch (err: any) {
@@ -1473,8 +1496,20 @@ export default function App() {
                   className="w-24 medieval-input"
                 />
                 <button onClick={addRedacao} className="flex-1 medieval-button flex items-center justify-center gap-2">
-                  <Plus size={16} /> Salvar
+                  {editingRedacao ? <CheckSquare size={16} /> : <Plus size={16} />} {editingRedacao ? 'Atualizar' : 'Salvar'}
                 </button>
+                {editingRedacao && (
+                  <button 
+                    onClick={() => {
+                      setEditingRedacao(null);
+                      setNewRedacao({ theme: '', score: 0 });
+                    }} 
+                    className="p-2 text-quest-text-muted hover:text-quest-red transition-colors"
+                    title="Cancelar Edição"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
               </div>
             </div>
             <div className="p-4">
@@ -1515,39 +1550,52 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-4">
                             <div className={`text-2xl font-serif drop-shadow-md ${isApproved ? 'text-green-500' : 'text-quest-gold'}`}>{r.score}</div>
-                            {deletingRedacaoId === r.id ? (
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      // Optimistic update
-                                      setRedacoes(prev => prev.filter(item => item.id !== r.id));
-                                      await supabase.from('redacoes').delete().eq('id', r.id);
-                                      setDeletingRedacaoId(null);
-                                    } catch (err) {
-                                      console.error(err);
-                                    }
-                                  }}
-                                  className="text-quest-red font-bold text-xs uppercase hover:underline"
-                                >
-                                  Confirmar
-                                </button>
-                                <button 
-                                  onClick={() => setDeletingRedacaoId(null)}
-                                  className="text-quest-text-muted text-xs uppercase hover:underline"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            ) : (
+                            <div className="flex items-center gap-1">
                               <button 
-                                onClick={() => setDeletingRedacaoId(r.id)}
-                                className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
-                                title="Excluir Redação"
+                                onClick={() => {
+                                  setEditingRedacao(r);
+                                  setNewRedacao({ theme: r.theme, score: r.score });
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="text-quest-gold-dark hover:text-quest-gold transition-colors p-2"
+                                title="Editar Redação"
                               >
-                                <Trash2 size={18} />
+                                <PenTool size={18} />
                               </button>
-                            )}
+                              {deletingRedacaoId === r.id ? (
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        // Optimistic update
+                                        setRedacoes(prev => prev.filter(item => item.id !== r.id));
+                                        await supabase.from('redacoes').delete().eq('id', r.id);
+                                        setDeletingRedacaoId(null);
+                                      } catch (err) {
+                                        console.error(err);
+                                      }
+                                    }}
+                                    className="text-quest-red font-bold text-xs uppercase hover:underline"
+                                  >
+                                    Confirmar
+                                  </button>
+                                  <button 
+                                    onClick={() => setDeletingRedacaoId(null)}
+                                    className="text-quest-text-muted text-xs uppercase hover:underline"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setDeletingRedacaoId(r.id)}
+                                  className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
+                                  title="Excluir Redação"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1594,17 +1642,18 @@ export default function App() {
               <div className="px-4 py-3 border-b-2 border-quest-gold-dark/30 flex items-center gap-2 text-quest-gold text-sm font-serif tracking-widest uppercase bg-black/20">
                 <TrendingUp size={16} /> EVOLUÇÃO DO GUERREIRO
               </div>
-              <div className="flex-1 p-4 min-h-[250px]">
+              <div className="flex-1 p-4 min-h-[300px] h-[300px] relative">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                       <XAxis dataKey="name" stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} />
-                      <YAxis stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} />
+                      <YAxis stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} domain={[0, 100]} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1a1814', borderColor: '#8c7335', color: '#d4af37', fontFamily: 'MedievalSharp' }}
                         itemStyle={{ color: '#d4af37' }}
                       />
+                      <Legend wrapperStyle={{ fontFamily: 'MedievalSharp', fontSize: '12px', paddingTop: '10px' }} />
                       <Line type="monotone" dataKey="score" name="Sua Nota" stroke="#8b0000" strokeWidth={3} dot={{ fill: '#8b0000', r: 5, strokeWidth: 2, stroke: '#d4af37' }} activeDot={{ r: 8, fill: '#d4af37' }} />
                       <Line type="monotone" dataKey="target" name="Nota de Corte" stroke="#8c7335" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                     </LineChart>
@@ -1796,7 +1845,8 @@ export default function App() {
                     const isWarning = simulado.totalScore >= activeContest.warningScore && !isApproved;
                     
                     return (
-                      <Panel className="p-0 overflow-hidden">
+                      <div key={simulado.id}>
+                        <Panel className="p-0 overflow-hidden">
                         <div className="p-4 border-b border-quest-gold-dark/30 flex justify-between items-start bg-black/20">
                           <div>
                             <h3 className="font-serif text-quest-gold text-lg tracking-widest uppercase">{simulado.title}</h3>
@@ -1811,39 +1861,57 @@ export default function App() {
                                 {isApproved ? 'APROVADO' : 'REPROVADO'}
                               </p>
                             </div>
-                            {deletingSimuladoId === simulado.id ? (
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={async () => {
-                                    try {
-                                      // Optimistic update
-                                      setDetailedSimulados(prev => prev.filter(item => item.id !== simulado.id));
-                                      await supabase.from('detailed_simulados').delete().eq('id', simulado.id);
-                                      setDeletingSimuladoId(null);
-                                    } catch (err) {
-                                      console.error(err);
-                                    }
-                                  }}
-                                  className="text-quest-red font-bold text-xs uppercase hover:underline"
-                                >
-                                  Confirmar
-                                </button>
-                                <button 
-                                  onClick={() => setDeletingSimuladoId(null)}
-                                  className="text-quest-text-muted text-xs uppercase hover:underline"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            ) : (
+                            <div className="flex items-center gap-1">
                               <button 
-                                onClick={() => setDeletingSimuladoId(simulado.id)}
-                                className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
-                                title="Excluir Simulado"
+                                onClick={() => {
+                                  setEditingSimulado(simulado);
+                                  setNewDetailedSimulado({
+                                    title: simulado.title,
+                                    contestId: simulado.contestId,
+                                    subjectScores: simulado.subjectScores
+                                  });
+                                  setSimuladoModalTab('registrar');
+                                  setIsSimuladoModalOpen(true);
+                                }}
+                                className="text-quest-gold-dark hover:text-quest-gold transition-colors p-2"
+                                title="Editar Simulado"
                               >
-                                <Trash2 size={20} />
+                                <PenTool size={20} />
                               </button>
-                            )}
+                              {deletingSimuladoId === simulado.id ? (
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        // Optimistic update
+                                        setDetailedSimulados(prev => prev.filter(item => item.id !== simulado.id));
+                                        await supabase.from('detailed_simulados').delete().eq('id', simulado.id);
+                                        setDeletingSimuladoId(null);
+                                      } catch (err) {
+                                        console.error(err);
+                                      }
+                                    }}
+                                    className="text-quest-red font-bold text-xs uppercase hover:underline"
+                                  >
+                                    Confirmar
+                                  </button>
+                                  <button 
+                                    onClick={() => setDeletingSimuladoId(null)}
+                                    className="text-quest-text-muted text-xs uppercase hover:underline"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setDeletingSimuladoId(simulado.id)}
+                                  className="text-quest-red-dark hover:text-quest-red transition-colors p-2"
+                                  title="Excluir Simulado"
+                                >
+                                  <Trash2 size={20} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                         
@@ -1859,8 +1927,9 @@ export default function App() {
                           })}
                         </div>
                       </Panel>
-                    );
-                  })
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1901,7 +1970,11 @@ export default function App() {
                 <Trophy size={20} className="text-quest-gold" /> 
                 ÁREA DE SIMULADOS
               </h2>
-              <button onClick={() => setIsSimuladoModalOpen(false)} className="text-quest-text-muted hover:text-quest-red transition-colors">
+              <button onClick={() => {
+                setIsSimuladoModalOpen(false);
+                setEditingSimulado(null);
+                setNewDetailedSimulado({ title: '', contestId: 'bb', subjectScores: {} });
+              }} className="text-quest-text-muted hover:text-quest-red transition-colors">
                 <X size={24} />
               </button>
             </div>
@@ -1970,7 +2043,7 @@ export default function App() {
                   
                   <div className="flex justify-end pt-4 border-t border-quest-gold-dark/20">
                     <button onClick={addDetailedSimulado} className="medieval-button flex items-center justify-center gap-2">
-                      <Plus size={16} /> Registrar Simulado
+                      {editingSimulado ? <CheckSquare size={16} /> : <Plus size={16} />} {editingSimulado ? 'Atualizar Simulado' : 'Registrar Simulado'}
                     </button>
                   </div>
                 </div>
@@ -2185,6 +2258,8 @@ export default function App() {
                     <Document
                       file="/conhecimentos_bancarios.pdf"
                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                      onLoadError={(error) => console.error("Erro no Document (CB):", error)}
+                      onSourceError={(error) => console.error("Erro na Fonte (CB):", error)}
                       loading={<div className="p-8 text-center text-gray-500">Carregando PDF...</div>}
                       error={<div className="p-8 text-center text-red-500">Erro ao carregar o PDF. Verifique se o arquivo conhecimentos_bancarios.pdf está na pasta public.</div>}
                     >
@@ -2205,6 +2280,8 @@ export default function App() {
                     <Document
                       file="/vendas.pdf"
                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                      onLoadError={(error) => console.error("Erro no Document (VN):", error)}
+                      onSourceError={(error) => console.error("Erro na Fonte (VN):", error)}
                       loading={<div className="p-8 text-center text-gray-500">Carregando PDF...</div>}
                       error={<div className="p-8 text-center text-red-500">Erro ao carregar o PDF. Verifique se o arquivo vendas.pdf está na pasta public.</div>}
                     >
