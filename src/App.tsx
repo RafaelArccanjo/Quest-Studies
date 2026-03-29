@@ -39,17 +39,18 @@ const studyCycle = [
 ];
 
 const battleTable = [
-  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/7', progress: 0 },
-  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/7', progress: 0 },
-  { subject: 'Direito Administrativo', conquest: '0/7', progress: 0 },
-  { subject: 'Direito Penal', conquest: '0/7', progress: 0 },
-  { subject: 'Administração Pública', conquest: '0/7', progress: 0 },
-  { subject: 'Direito Constitucional', conquest: '0/7', progress: 0 },
-  { subject: 'Ética Profissional', conquest: '0/7', progress: 0 },
-  { subject: 'Informática', conquest: '0/7', progress: 0 },
-  { subject: 'Lei de Execução Penal', conquest: '0/7', progress: 0 },
-  { subject: 'Vendas e Negociação', conquest: '1/7', progress: 14 },
-  { subject: 'Conhecimentos Bancários', conquest: '0/7', progress: 0 },
+  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/2', progress: 0 },
+  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/2', progress: 0 },
+  { subject: 'Direito Administrativo', conquest: '0/2', progress: 0 },
+  { subject: 'Direito Penal', conquest: '0/2', progress: 0 },
+  { subject: 'Administração Pública', conquest: '0/2', progress: 0 },
+  { subject: 'Direito Constitucional', conquest: '0/2', progress: 0 },
+  { subject: 'Ética Profissional', conquest: '0/2', progress: 0 },
+  { subject: 'Informática', conquest: '0/2', progress: 0 },
+  { subject: 'Lei de Execução Penal', conquest: '0/2', progress: 0 },
+  { subject: 'Vendas e Negociação', conquest: '0/2', progress: 0 },
+  { subject: 'Conhecimentos Bancários', conquest: '0/2', progress: 0 },
+  { subject: 'Matemática', conquest: '0/2', progress: 0 },
 ];
 
 const weeklyHistory = [
@@ -59,15 +60,46 @@ const weeklyHistory = [
 ];
 
 const subjectTasks: Record<string, { id: string, title: string }[]> = {
-  'Língua Portuguesa e Redação Oficial': [],
-  'Direitos Humanos e Tratamento Penal': [],
-  'Direito Administrativo': [],
-  'Direito Penal': [],
-  'Administração Pública': [],
-  'Direito Constitucional': [],
-  'Ética Profissional': [],
-  'Informática': [],
-  'Lei de Execução Penal': [],
+  'Língua Portuguesa e Redação Oficial': [
+    { id: 'lp_1', title: 'Tarefa 1: Ortografia e Acentuação' },
+    { id: 'lp_2', title: 'Tarefa 2: Morfologia e Sintaxe' },
+  ],
+  'Direitos Humanos e Tratamento Penal': [
+    { id: 'dh_1', title: 'Tarefa 1: Declaração Universal dos Direitos Humanos' },
+    { id: 'dh_2', title: 'Tarefa 2: Regras de Mandela' },
+  ],
+  'Direito Administrativo': [
+    { id: 'da_1', title: 'Tarefa 1: Princípios da Administração Pública' },
+    { id: 'da_2', title: 'Tarefa 2: Atos Administrativos' },
+  ],
+  'Direito Penal': [
+    { id: 'dp_1', title: 'Tarefa 1: Teoria do Crime' },
+    { id: 'dp_2', title: 'Tarefa 2: Crimes contra a Administração Pública' },
+  ],
+  'Administração Pública': [
+    { id: 'ap_1', title: 'Tarefa 1: Gestão de Pessoas' },
+    { id: 'ap_2', title: 'Tarefa 2: Processo Administrativo' },
+  ],
+  'Direito Constitucional': [
+    { id: 'dc_1', title: 'Tarefa 1: Direitos e Garantias Fundamentais' },
+    { id: 'dc_2', title: 'Tarefa 2: Organização do Estado' },
+  ],
+  'Ética Profissional': [
+    { id: 'et_1', title: 'Tarefa 1: Código de Ética do Servidor Público' },
+    { id: 'et_2', title: 'Tarefa 2: Lei de Improbidade Administrativa' },
+  ],
+  'Informática': [
+    { id: 'inf_1', title: 'Tarefa 1: Hardware e Software' },
+    { id: 'inf_2', title: 'Tarefa 2: Redes e Internet' },
+  ],
+  'Lei de Execução Penal': [
+    { id: 'lep_1', title: 'Tarefa 1: Disposições Gerais e do Objeto da Execução' },
+    { id: 'lep_2', title: 'Tarefa 2: Dos Órgãos da Execução Penal' },
+  ],
+  'Matemática': [
+    { id: 'mat_1', title: 'Tarefa 1: Raciocínio Lógico' },
+    { id: 'mat_2', title: 'Tarefa 2: Matemática Financeira' },
+  ],
   'Conhecimentos Bancários': [
     { id: 'cb_1', title: 'Dia 1: TAREFA 1 – Estudo da Aula 00 (toda a teoria) + resolver 12 questões' },
     { id: 'cb_2', title: 'Dia 2: TAREFA 2 – Revisão da Aula 00 + resolver questões 13 a 43' },
@@ -469,12 +501,31 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('admin123');
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  const weekDates = useMemo(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - day + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+  }, []);
+
+  const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
+  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
   const completedSubjects = useMemo(() => {
-    return Object.keys(subjectTasks).filter(subject => {
-      const tasks = subjectTasks[subject];
-      return tasks.length > 0 && tasks.every(task => !!taskCompletions[`${subject}_${task.id}`]);
+    return studyCycle.filter(subject => {
+      // A subject is completed if it has been finished 2 times in the current week
+      let count = 0;
+      weekDates.forEach(date => {
+        if (completions[`${date}_${subject}`]) count++;
+      });
+      return count >= 2;
     });
-  }, [taskCompletions]);
+  }, [completions, studyCycle, weekDates]);
 
   const activeStudyCycle = useMemo(() => {
     return studyCycle.filter(subject => !completedSubjects.includes(subject));
@@ -743,21 +794,6 @@ export default function App() {
     };
   }, [user]);
 
-  const weekDates = useMemo(() => {
-    const today = new Date();
-    const day = today.getDay();
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - day + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates;
-  }, []);
-
-  const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
-  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-
   const currentWeekFlashcards = useMemo(() => {
     return weekDates.filter(date => completions[`${date}_Flashcards`]).length;
   }, [weekDates, completions]);
@@ -772,7 +808,7 @@ export default function App() {
     }, 0);
   }, [weekDates, completions, studyCycle]);
 
-  const totalWeeklyCycles = useMemo(() => studyCycle.length * 7, [studyCycle]);
+  const totalWeeklyCycles = useMemo(() => studyCycle.length * 2, [studyCycle]);
   
   const currentWeekProgress = useMemo(() => {
     return totalWeeklyCycles > 0 ? Math.round((currentWeekCycles / totalWeeklyCycles) * 100) : 0;
@@ -828,7 +864,7 @@ export default function App() {
     const stats: Record<string, { total: number, completed: number }> = {};
     studyCycle.forEach(subject => {
       if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
-      stats[subject].total = 7; // Goal of 7 completions per week
+      stats[subject].total = 2; // Goal of 2 completions per week
       weekDates.forEach(dateStr => {
         if (completions[`${dateStr}_${subject}`]) {
           stats[subject].completed += 1;
