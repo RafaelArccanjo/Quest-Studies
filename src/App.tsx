@@ -260,27 +260,27 @@ export default function App() {
     setShowRain(true);
     
     // Quick, low-volume metal clink
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-    audio.volume = 0.25;
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    audio.volume = 0.5;
     audio.play().catch(e => console.log("Audio play failed", e));
 
-    setTimeout(() => setShowRain(false), 5000); // Shorter rain duration
+    setTimeout(() => setShowRain(false), 5000);
   };
 
   const triggerMedievalEffects = () => {
     // Quick, low-volume metal clink
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-    audio.volume = 0.2;
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    audio.volume = 0.4;
     audio.play().catch(e => console.log("Audio play failed", e));
     
     setShowRain(true);
-    setTimeout(() => setShowRain(false), 4000); // Shorter rain duration
+    setTimeout(() => setShowRain(false), 4000);
   };
 
   const playClickSound = () => {
-    // Solid wooden/metallic click
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-    audio.volume = 0.4;
+    // Quick, low-volume metal clink
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    audio.volume = 0.3;
     audio.play().catch(e => console.log("Audio play failed", e));
   };
   
@@ -384,6 +384,7 @@ export default function App() {
   };
 
   const skipPhase = () => {
+    playClickSound();
     if (cyclePhase === 'study') {
       startBreakPhase();
     } else if (cyclePhase === 'break') {
@@ -393,6 +394,7 @@ export default function App() {
 
   const activateDouble = () => {
     if (cyclePhase === 'study' && !doublePending) {
+      playClickSound();
       setDoublePending(true);
       addHistoryEvent(cycleQueue[currentCycleIdx], "Ciclo duplo ativado", 'double');
       addToast(`🔥 Ciclo duplo ativado! ${studyMin}min extras na mesma matéria.`, 'warning');
@@ -920,6 +922,7 @@ export default function App() {
     
     try {
       if (isCompleted) {
+        playClickSound();
         const { error } = await supabase.from('completions').delete().eq('id', docId);
         if (error) throw error;
         // Optimistic update or manual refetch
@@ -929,7 +932,6 @@ export default function App() {
           return next;
         });
       } else {
-        playClickSound();
         const { error } = await supabase.from('completions').upsert({
           id: docId,
           user_id: user.id,
@@ -972,6 +974,7 @@ export default function App() {
     
     try {
       if (isCompleted) {
+        playClickSound();
         const { error } = await supabase.from('completions').delete().eq('id', docId);
         if (error) throw error;
         setCompletions(prev => {
@@ -980,7 +983,6 @@ export default function App() {
           return next;
         });
       } else {
-        playClickSound();
         const { error } = await supabase.from('completions').upsert({
           id: docId,
           user_id: user.id,
@@ -990,10 +992,7 @@ export default function App() {
         if (error) throw error;
         setCompletions(prev => ({ ...prev, [`${dateStr}_Flashcards`]: true }));
         
-        // Medieval flashcard sound (sword sheathe)
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/1197/1197-preview.mp3');
-        audio.volume = 0.5;
-        audio.play().catch(e => console.log("Audio play failed", e));
+        triggerMedievalEffects();
       }
     } catch (err: any) {
       if (err.message?.includes('schema cache')) {
@@ -1010,6 +1009,7 @@ export default function App() {
     
     try {
       if (isCompleted) {
+        playClickSound();
         const { error } = await supabase.from('task_completions').delete().eq('id', docId);
         if (error) throw error;
         setTaskCompletions(prev => {
@@ -1018,7 +1018,6 @@ export default function App() {
           return next;
         });
       } else {
-        playClickSound();
         const { error } = await supabase.from('task_completions').upsert({
           id: docId,
           user_id: user.id,
