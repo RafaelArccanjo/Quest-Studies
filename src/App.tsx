@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
-  CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, X, Eye, Trash2, Settings,
-  Crown, Scroll, Sparkles
+  CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
+  Crown, Scroll, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from './supabase';
@@ -121,16 +121,32 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 // --- MOCK DATA ---
-const weeklySchedule = [
-  { time: '1h', days: ['Conhecimentos Bancários', 'Conhecimentos Bancários', 'Conhecimentos Bancários', 'Conhecimentos Bancários', 'Conhecimentos Bancários', 'Conhecimentos Bancários', 'Conhecimentos Bancários'] },
-  { time: '1h', days: ['Vendas e Negociação', 'Vendas e Negociação', 'Vendas e Negociação', 'Vendas e Negociação', 'Vendas e Negociação', 'Vendas e Negociação', 'Vendas e Negociação'] },
-  { time: '1h', days: ['Rev. Mat. Estudadas', 'Rev. Mat. Estudadas', 'Rev. Mat. Estudadas', 'Rev. Mat. Estudadas', 'Rev. Mat. Estudadas', 'Rev. Mat. Estudadas', 'Rev. Mat. Estudadas'] },
+const studyCycle = [
+  'Língua Portuguesa e Redação Oficial',
+  'Direitos Humanos e Tratamento Penal',
+  'Direito Administrativo',
+  'Direito Penal',
+  'Administração Pública',
+  'Direito Constitucional',
+  'Ética Profissional',
+  'Informática',
+  'Lei de Execução Penal',
+  'Vendas e Negociação',
+  'Conhecimentos Bancários'
 ];
 
 const battleTable = [
-  { subject: 'Conhecimentos Bancários', conquest: '0/7', progress: 0 },
+  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/7', progress: 0 },
+  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/7', progress: 0 },
+  { subject: 'Direito Administrativo', conquest: '0/7', progress: 0 },
+  { subject: 'Direito Penal', conquest: '0/7', progress: 0 },
+  { subject: 'Administração Pública', conquest: '0/7', progress: 0 },
+  { subject: 'Direito Constitucional', conquest: '0/7', progress: 0 },
+  { subject: 'Ética Profissional', conquest: '0/7', progress: 0 },
+  { subject: 'Informática', conquest: '0/7', progress: 0 },
+  { subject: 'Lei de Execução Penal', conquest: '0/7', progress: 0 },
   { subject: 'Vendas e Negociação', conquest: '1/7', progress: 14 },
-  { subject: 'Rev. Mat. Estudadas', conquest: '0/7', progress: 0 },
+  { subject: 'Conhecimentos Bancários', conquest: '0/7', progress: 0 },
 ];
 
 const weeklyHistory = [
@@ -140,6 +156,15 @@ const weeklyHistory = [
 ];
 
 const subjectTasks: Record<string, { id: string, title: string }[]> = {
+  'Língua Portuguesa e Redação Oficial': [],
+  'Direitos Humanos e Tratamento Penal': [],
+  'Direito Administrativo': [],
+  'Direito Penal': [],
+  'Administração Pública': [],
+  'Direito Constitucional': [],
+  'Ética Profissional': [],
+  'Informática': [],
+  'Lei de Execução Penal': [],
   'Conhecimentos Bancários': [
     { id: 'cb_1', title: 'Dia 1: TAREFA 1 – Estudo da Aula 00 (toda a teoria) + resolver 12 questões' },
     { id: 'cb_2', title: 'Dia 2: TAREFA 2 – Revisão da Aula 00 + resolver questões 13 a 43' },
@@ -475,15 +500,166 @@ export default function App() {
   const [genericPdfPage, setGenericPdfPage] = useState(1);
   const [isSimuladoModalOpen, setIsSimuladoModalOpen] = useState(false);
   const [simuladoModalTab, setSimuladoModalTab] = useState<'registrar' | 'novo_concurso'>('registrar');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'simulados'>('dashboard');
-  
-  // Forms State
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'simulados' | 'ciclo'>('dashboard');
+  const [cicloView, setCicloView] = useState<'ativo' | 'config' | 'historico'>('config');
+
+  // --- CICLO DE ESTUDOS STATE ---
+  const [cycleQueue, setCycleQueue] = useState<string[]>([]);
+  const [currentCycleIdx, setCurrentCycleIdx] = useState(0);
+  const [cycleTimeLeft, setCycleTimeLeft] = useState(0);
+  const [cyclePhase, setCyclePhase] = useState<'idle' | 'study' | 'break'>('idle');
+  const [isCycleRunning, setIsCycleRunning] = useState(false);
+  const [doublePending, setDoublePending] = useState(false);
+  const [isDouble, setIsDouble] = useState(false);
+  const [completedCycles, setCompletedCycles] = useState(0);
+  const [studiedMinutes, setStudiedMinutes] = useState(0);
+  const [doubleCount, setDoubleCount] = useState(0);
+  const [cycleHistory, setCycleHistory] = useState<any[]>([]);
+  const [studyMin, setStudyMin] = useState(50);
+  const [breakMin, setBreakMin] = useState(10);
+  const [selectedCycleSubjects, setSelectedCycleSubjects] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<any[]>([]);
+
+  const cycleSubjects = [
+    "Língua Portuguesa e Redação Oficial",
+    "Direitos Humanos e Tratamento Penal",
+    "Direito Administrativo",
+    "Direito Penal",
+    "Administração Pública",
+    "Direito Constitucional",
+    "Ética Profissional",
+    "Informática",
+    "Lei de Execução Penal",
+    "Vendas e Negociação",
+    "Conhecimentos Bancários"
+  ];
+
+  const addToast = (message: string, type: 'success' | 'warning' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
+  const addHistoryEvent = (subject: string, note: string, type: 'study' | 'double' | 'break') => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setCycleHistory(prev => [{
+      id: Date.now(),
+      subject,
+      note,
+      type,
+      time: timeStr
+    }, ...prev]);
+  };
+
+  const startStudyPhase = () => {
+    setCyclePhase('study');
+    setCycleTimeLeft(studyMin * 60);
+    setIsCycleRunning(true);
+  };
+
+  const startBreakPhase = () => {
+    addHistoryEvent(cycleQueue[currentCycleIdx], `${studyMin}min de estudo concluídos`, 'study');
+    setCompletedCycles(prev => prev + 1);
+    setStudiedMinutes(prev => prev + studyMin);
+    
+    setCyclePhase('break');
+    setCycleTimeLeft(breakMin * 60);
+    addToast(`☕ Pausa de ${breakMin}min! Descanse, guerreiro.`, 'success');
+  };
+
+  const advanceToNextSubject = () => {
+    addHistoryEvent('Pausa', `${breakMin}min de pausa`, 'break');
+    
+    if (doublePending) {
+      setIsDouble(true);
+      setDoublePending(false);
+      setDoubleCount(prev => prev + 1);
+      // Keep currentIdx
+    } else {
+      setIsDouble(false);
+      setCurrentCycleIdx(prev => (prev + 1) % cycleQueue.length);
+    }
+    
+    startStudyPhase();
+  };
+
+  const skipPhase = () => {
+    if (cyclePhase === 'study') {
+      startBreakPhase();
+    } else if (cyclePhase === 'break') {
+      advanceToNextSubject();
+    }
+  };
+
+  const activateDouble = () => {
+    if (cyclePhase === 'study' && !doublePending) {
+      setDoublePending(true);
+      addHistoryEvent(cycleQueue[currentCycleIdx], "Ciclo duplo ativado", 'double');
+      addToast(`🔥 Ciclo duplo ativado! ${studyMin}min extras na mesma matéria.`, 'warning');
+    }
+  };
+
+  const resetCycle = () => {
+    if (window.confirm("Deseja realmente reiniciar o ciclo? Isso zerará todos os contadores.")) {
+      setCompletedCycles(0);
+      setStudiedMinutes(0);
+      setDoubleCount(0);
+      setCycleHistory([]);
+      setCyclePhase('idle');
+      setIsCycleRunning(false);
+      setCycleTimeLeft(0);
+      setCurrentCycleIdx(0);
+      setDoublePending(false);
+      setIsDouble(false);
+      addToast("🔄 Ciclo reiniciado!", "warning");
+    }
+  };
+
+  const startCycle = () => {
+    if (selectedCycleSubjects.length === 0) {
+      addToast("Selecione ao menos uma matéria!", "warning");
+      return;
+    }
+    setCycleQueue(selectedCycleSubjects);
+    setCurrentCycleIdx(0);
+    setCompletedCycles(0);
+    setStudiedMinutes(0);
+    setDoubleCount(0);
+    setCycleHistory([]);
+    setDoublePending(false);
+    setIsDouble(false);
+    setCyclePhase('study');
+    setCycleTimeLeft(studyMin * 60);
+    setIsCycleRunning(false); // Wait for click to start
+    setCicloView('ativo');
+    addToast(`🏰 Ciclo configurado! ${selectedCycleSubjects.length} matérias na fila.`, "success");
+  };
+
+  useEffect(() => {
+    let timer: any;
+    if (isCycleRunning && cycleTimeLeft > 0) {
+      timer = setInterval(() => {
+        setCycleTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (isCycleRunning && cycleTimeLeft === 0) {
+      if (cyclePhase === 'study') {
+        startBreakPhase();
+      } else if (cyclePhase === 'break') {
+        advanceToNextSubject();
+      }
+    }
+    return () => clearInterval(timer);
+  }, [isCycleRunning, cycleTimeLeft, cyclePhase]);
   const [newSimulado, setNewSimulado] = useState({ title: '', score: 0, targetScore: 80 });
   const [newDetailedSimulado, setNewDetailedSimulado] = useState({ title: '', contestId: 'bb', subjectScores: {} as Record<string, number> });
   const [newContest, setNewContest] = useState({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
   const [newRedacao, setNewRedacao] = useState({ theme: '', score: 0 });
   const [editingRedacao, setEditingRedacao] = useState<any | null>(null);
   const [selectedContestId, setSelectedContestId] = useState('bb');
+  const [dailyMissionsLimit, setDailyMissionsLimit] = useState(3);
   const [deletingSimuladoId, setDeletingSimuladoId] = useState<string | null>(null);
   const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
   const [editingSimulado, setEditingSimulado] = useState<any | null>(null);
@@ -500,11 +676,9 @@ export default function App() {
     });
   }, [taskCompletions]);
 
-  const activeWeeklySchedule = useMemo(() => {
-    return weeklySchedule.filter(row => 
-      row.days.some(subject => !completedSubjects.includes(subject))
-    );
-  }, [completedSubjects]);
+  const activeStudyCycle = useMemo(() => {
+    return studyCycle.filter(subject => !completedSubjects.includes(subject));
+  }, [completedSubjects, studyCycle]);
 
   const allContests = useMemo(() => [...CONTESTS, ...userContests], [userContests]);
 
@@ -789,16 +963,16 @@ export default function App() {
   }, [weekDates, completions]);
 
   const currentWeekCycles = useMemo(() => {
-    return weekDates.reduce((acc, date, colIdx) => {
+    return weekDates.reduce((acc, date) => {
       let count = 0;
-      weeklySchedule.forEach(row => {
-        if (completions[`${date}_${row.days[colIdx]}`]) count++;
+      studyCycle.forEach(subject => {
+        if (completions[`${date}_${subject}`]) count++;
       });
       return acc + count;
     }, 0);
-  }, [weekDates, completions]);
+  }, [weekDates, completions, studyCycle]);
 
-  const totalWeeklyCycles = useMemo(() => weeklySchedule.length * 7, []);
+  const totalWeeklyCycles = useMemo(() => studyCycle.length * 7, [studyCycle]);
   
   const currentWeekProgress = useMemo(() => {
     return totalWeeklyCycles > 0 ? Math.round((currentWeekCycles / totalWeeklyCycles) * 100) : 0;
@@ -821,14 +995,27 @@ export default function App() {
   }, [currentWeekLabel, currentWeekCycles, totalWeeklyCycles, currentWeekProgress, currentWeekFlashcards]);
 
   const todaysMissions = useMemo(() => {
-    return weeklySchedule
-      .map(row => ({
-        subject: row.days[todayDayOfWeek],
-        time: row.time,
-        completed: !!completions[`${todayDateStr}_${row.days[todayDayOfWeek]}`]
-      }))
-      .filter(mission => !completedSubjects.includes(mission.subject));
-  }, [todayDayOfWeek, completions, todayDateStr, completedSubjects]);
+    // Find the first N subjects not completed today
+    const missions: { subject: string; time: string; completed: boolean }[] = [];
+    let count = 0;
+    
+    for (const subject of studyCycle) {
+      if (count >= dailyMissionsLimit) break;
+      const completedToday = !!completions[`${todayDateStr}_${subject}`];
+      const isLongTermCompleted = completedSubjects.includes(subject);
+      
+      if (!isLongTermCompleted) {
+        missions.push({
+          subject,
+          time: '1h',
+          completed: completedToday
+        });
+        if (!completedToday) count++;
+      }
+    }
+    
+    return missions;
+  }, [completions, todayDateStr, completedSubjects, studyCycle, dailyMissionsLimit]);
 
   const completedMissions = currentWeekCycles;
   const totalMissions = totalWeeklyCycles;
@@ -839,18 +1026,17 @@ export default function App() {
   // Calculate Battle Table
   const battleStats = useMemo(() => {
     const stats: Record<string, { total: number, completed: number }> = {};
-    weeklySchedule.forEach(row => {
-      row.days.forEach((subject, colIdx) => {
-        if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
-        stats[subject].total += 1;
-        const dateStr = weekDates[colIdx];
+    studyCycle.forEach(subject => {
+      if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
+      stats[subject].total = 7; // Goal of 7 completions per week
+      weekDates.forEach(dateStr => {
         if (completions[`${dateStr}_${subject}`]) {
           stats[subject].completed += 1;
         }
       });
     });
     return stats;
-  }, [weekDates, completions]);
+  }, [weekDates, completions, studyCycle]);
 
   const dynamicBattleTable = useMemo(() => {
     return Object.keys(battleStats)
@@ -959,11 +1145,10 @@ export default function App() {
         setCompletions(prev => ({ ...prev, [`${dateStr}_${subject}`]: true }));
         
         // Determine if this is the last mission of the day being completed
-        const todayDayOfWeek = new Date().getDay();
-        const currentTodaysMissions = weeklySchedule.map(row => ({
-          subject: row.days[todayDayOfWeek],
-          completed: !!completions[`${dateStr}_${row.days[todayDayOfWeek]}`] || row.days[todayDayOfWeek] === subject
-        }));
+        const currentTodaysMissions = studyCycle.map(subject => ({
+          subject,
+          completed: !!completions[`${dateStr}_${subject}`] || subject === subject
+        })).slice(0, 3);
         
         const otherMissions = currentTodaysMissions.filter(m => m.subject !== subject);
         const allOthersCompleted = otherMissions.every(m => m.completed);
@@ -1206,12 +1391,418 @@ export default function App() {
     );
   }
 
+  const renderCicloContent = () => {
+    if (cicloView === 'config') {
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <Panel>
+            <PanelHeader title="Configurar Ciclo" icon={Settings} />
+            <div className="p-6 space-y-6">
+              <p className="text-quest-text-muted italic text-center font-serif">
+                Selecione as matérias que farão parte da sua jornada hoje.
+              </p>
+              
+              <div className="flex justify-center gap-4">
+                <button 
+                  onClick={() => setSelectedCycleSubjects(cycleSubjects)}
+                  className="text-xs uppercase tracking-widest text-quest-gold hover:underline"
+                >
+                  Selecionar todas
+                </button>
+                <button 
+                  onClick={() => setSelectedCycleSubjects([])}
+                  className="text-xs uppercase tracking-widest text-quest-text-muted hover:underline"
+                >
+                  Desmarcar todas
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {cycleSubjects.map(subject => {
+                  const isSelected = selectedCycleSubjects.includes(subject);
+                  return (
+                    <button
+                      key={subject}
+                      onClick={() => {
+                        setSelectedCycleSubjects(prev => 
+                          prev.includes(subject) 
+                            ? prev.filter(s => s !== subject) 
+                            : [...prev, subject]
+                        );
+                      }}
+                      className={`p-3 text-left border transition-all flex items-center gap-3 rounded-sm ${
+                        isSelected 
+                          ? 'bg-quest-gold/20 border-quest-gold text-quest-gold shadow-[0_0_10px_rgba(184,155,94,0.2)]' 
+                          : 'bg-quest-panel-light border-quest-gold-dark/30 text-quest-text-muted hover:border-quest-gold-dark/60'
+                      }`}
+                    >
+                      {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                      <span className="text-sm font-medium">{subject}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-quest-gold-dark/20">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-quest-gold-dark mb-2">Tempo de Estudo (min)</label>
+                  <input 
+                    type="number" 
+                    value={studyMin}
+                    onChange={e => setStudyMin(Number(e.target.value))}
+                    className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-3 text-quest-gold focus:outline-none focus:border-quest-gold font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-quest-gold-dark mb-2">Tempo de Pausa (min)</label>
+                  <input 
+                    type="number" 
+                    value={breakMin}
+                    onChange={e => setBreakMin(Number(e.target.value))}
+                    className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-3 text-quest-gold focus:outline-none focus:border-quest-gold font-mono"
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={startCycle}
+                className="w-full medieval-button py-4 text-lg tracking-[0.2em] flex items-center justify-center gap-3"
+              >
+                <Play size={24} /> Iniciar Ciclo com Matérias Selecionadas
+              </button>
+            </div>
+          </Panel>
+        </motion.div>
+      );
+    }
+
+    if (cicloView === 'historico') {
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="font-serif text-2xl text-quest-gold tracking-widest uppercase">Histórico do Ciclo</h2>
+            <button 
+              onClick={() => setCycleHistory([])}
+              className="flex items-center gap-2 text-xs uppercase tracking-widest text-quest-red hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={14} /> Limpar
+            </button>
+          </div>
+
+          <Panel>
+            <div className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
+              {cycleHistory.length === 0 ? (
+                <div className="text-center py-20 text-quest-text-muted italic font-serif">
+                  📜 Nenhum registro ainda. Inicie um ciclo!
+                </div>
+              ) : (
+                cycleHistory.map(event => (
+                  <div key={event.id} className="flex items-center gap-4 p-3 bg-black/20 border border-quest-gold-dark/10 rounded-sm">
+                    <div className={`w-12 h-12 flex items-center justify-center rounded-sm border ${
+                      event.type === 'study' ? 'bg-quest-gold/10 border-quest-gold text-quest-gold' :
+                      event.type === 'double' ? 'bg-orange-500/10 border-orange-500 text-orange-500' :
+                      'bg-green-500/10 border-green-500 text-green-500'
+                    }`}>
+                      {event.type === 'study' ? <BookOpen size={20} /> :
+                       event.type === 'double' ? <Flame size={20} /> :
+                       <Coffee size={20} />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-serif text-quest-gold uppercase tracking-wider text-sm">{event.subject}</h4>
+                        <span className="text-[10px] font-mono text-quest-text-muted">{event.time}</span>
+                      </div>
+                      <p className="text-xs text-quest-text-muted italic">{event.note}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Panel>
+          
+          <button 
+            onClick={() => setCicloView('ativo')}
+            className="w-full p-3 border border-quest-gold-dark/30 text-quest-gold-dark hover:text-quest-gold hover:border-quest-gold transition-all uppercase tracking-widest text-xs font-serif"
+          >
+            Voltar ao Ciclo Ativo
+          </button>
+        </motion.div>
+      );
+    }
+
+    // View: Ativo
+    const currentSubject = cycleQueue[currentCycleIdx] || "Nenhuma matéria";
+    const totalSeconds = cyclePhase === 'study' ? studyMin * 60 : breakMin * 60;
+    const progress = totalSeconds > 0 ? (cycleTimeLeft / totalSeconds) * 100 : 0;
+    
+    // SVG Ring Logic
+    const radius = 88;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference * (1 - cycleTimeLeft / totalSeconds);
+
+    const formatTime = (seconds: number) => {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+        {/* STATS GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Panel className="p-4 text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-quest-text-muted mb-1 font-serif">Ciclos Completos</p>
+            <p className="text-3xl font-serif text-quest-gold drop-shadow-md">{completedCycles}</p>
+          </Panel>
+          <Panel className="p-4 text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-quest-text-muted mb-1 font-serif">Tempo Estudado</p>
+            <p className="text-3xl font-serif text-quest-gold drop-shadow-md">
+              {studiedMinutes >= 60 ? `${(studiedMinutes / 60).toFixed(1)}h` : `${studiedMinutes}m`}
+            </p>
+          </Panel>
+          <Panel className="p-4 text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-quest-text-muted mb-1 font-serif">Ciclos Duplos</p>
+            <p className="text-3xl font-serif text-quest-gold drop-shadow-md">{doubleCount}</p>
+          </Panel>
+          <Panel className="p-4 text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-quest-text-muted mb-1 font-serif">Matéria Atual</p>
+            <p className="text-xl font-serif text-quest-gold truncate px-2">{currentCycleIdx + 1} de {cycleQueue.length}</p>
+          </Panel>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* TIMER CARD */}
+          <div className="lg:col-span-2 space-y-6">
+            <Panel className="p-8">
+              <div className="flex flex-col items-center text-center space-y-6">
+                <div className="space-y-1">
+                  <h2 className="font-cinzel text-4xl text-quest-gold tracking-widest uppercase drop-shadow-[0_0_10px_rgba(184,155,94,0.4)]">
+                    {cyclePhase === 'break' ? 'PAUSA' : currentSubject}
+                  </h2>
+                  <p className="text-xs uppercase tracking-[0.3em] text-quest-gold-dark">Ciclo #{completedCycles + 1}</p>
+                </div>
+
+                {/* CIRCULAR TIMER */}
+                <div className="relative flex items-center justify-center w-[200px] h-[200px] md:w-[240px] md:h-[240px]">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="50%" cy="50%" r={radius}
+                      className="stroke-quest-panel-light fill-none"
+                      strokeWidth="8"
+                    />
+                    <motion.circle
+                      cx="50%" cy="50%" r={radius}
+                      className={`fill-none transition-all duration-1000 linear ${
+                        cyclePhase === 'break' ? 'stroke-green-500' : 'stroke-quest-gold'
+                      }`}
+                      strokeWidth="8"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={offset}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="font-mono text-5xl md:text-6xl tabular-nums text-white drop-shadow-lg">
+                      {formatTime(cycleTimeLeft)}
+                    </span>
+                    <div className={`mt-2 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase flex items-center gap-2 ${
+                      cyclePhase === 'break' ? 'bg-green-500/20 text-green-400' : 'bg-quest-gold/20 text-quest-gold'
+                    }`}>
+                      {cyclePhase === 'break' ? (
+                        <><Coffee size={12} /> PAUSA — DESCANSE</>
+                      ) : (
+                        <><Swords size={12} /> FASE DE ESTUDO</>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LINEAR PROGRESS */}
+                <div className="w-full max-w-md space-y-2">
+                  <ProgressBar progress={progress} className="h-3" />
+                  <div className="flex justify-between text-[10px] uppercase tracking-widest text-quest-gold-dark font-serif">
+                    <span>Início</span>
+                    <span>Conclusão</span>
+                  </div>
+                </div>
+
+                {/* CONTROLS */}
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setIsCycleRunning(!isCycleRunning)}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                      isCycleRunning 
+                        ? 'bg-quest-panel border-2 border-quest-gold text-quest-gold hover:bg-quest-gold/10' 
+                        : 'bg-quest-gold text-quest-bg hover:bg-quest-gold/90'
+                    }`}
+                  >
+                    {isCycleRunning ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
+                  </button>
+                  
+                  {isCycleRunning && (
+                    <button 
+                      onClick={skipPhase}
+                      className="w-12 h-12 rounded-full bg-quest-panel border border-quest-gold-dark/50 text-quest-gold-dark flex items-center justify-center hover:text-quest-gold hover:border-quest-gold transition-all"
+                      title="Pular Fase"
+                    >
+                      <SkipForward size={24} />
+                    </button>
+                  )}
+                </div>
+
+                {/* BADGES */}
+                <div className="flex gap-3">
+                  {isDouble && (
+                    <div className="flex items-center gap-1 px-3 py-1 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full text-[10px] font-bold tracking-widest uppercase animate-pulse">
+                      <Flame size={12} /> Ciclo Duplo
+                    </div>
+                  )}
+                  {doublePending && (
+                    <div className="flex items-center gap-1 px-3 py-1 bg-quest-gold/20 text-quest-gold border border-quest-gold/30 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                      <Timer size={12} /> Duplo Agendado
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Panel>
+
+            {/* DOUBLE CYCLE ZONE */}
+            <Panel className="bg-gradient-to-br from-quest-panel to-quest-panel-light">
+              <div className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-sm bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500">
+                    <Flame size={28} />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-orange-500 tracking-widest uppercase">🔥 Estendendo o Foco</h3>
+                    <p className="text-xs text-quest-text-muted italic max-w-xs">
+                      Repita a matéria atual por mais um ciclo completo após a pausa.
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={activateDouble}
+                  disabled={doublePending || cyclePhase !== 'study'}
+                  className={`px-8 py-3 font-serif tracking-widest uppercase text-sm transition-all border rounded-sm ${
+                    doublePending 
+                      ? 'bg-quest-gold/10 border-quest-gold/30 text-quest-gold/50 cursor-not-allowed' 
+                      : cyclePhase === 'study'
+                        ? 'bg-orange-600 border-orange-400 text-white hover:bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]'
+                        : 'bg-quest-panel-light border-quest-gold-dark/30 text-quest-text-muted cursor-not-allowed'
+                  }`}
+                >
+                  {doublePending ? '✓ Duplo Agendado' : 'Ciclo Duplo'}
+                </button>
+              </div>
+            </Panel>
+          </div>
+
+          {/* QUEUE SIDEBAR */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-serif text-quest-gold tracking-widest uppercase text-sm">Fila de Matérias</h3>
+              <button 
+                onClick={() => setCicloView('historico')}
+                className="text-[10px] uppercase tracking-widest text-quest-text-muted hover:text-quest-gold flex items-center gap-1"
+              >
+                <History size={12} /> Histórico
+              </button>
+            </div>
+            
+            <div className="space-y-2">
+              {cycleQueue.map((subject, idx) => {
+                const isCurrent = idx === currentCycleIdx;
+                const isPast = idx < currentCycleIdx;
+                
+                return (
+                  <div 
+                    key={idx}
+                    className={`relative p-4 border transition-all rounded-sm flex items-center justify-between ${
+                      isCurrent 
+                        ? 'bg-quest-gold/10 border-quest-gold shadow-[0_0_15px_rgba(184,155,94,0.15)]' 
+                        : isDouble && isCurrent
+                          ? 'border-orange-500 ring-1 ring-orange-500/50'
+                          : 'bg-quest-panel border-quest-gold-dark/20'
+                    } ${isPast ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`font-mono text-xs ${isCurrent ? 'text-quest-gold' : 'text-quest-text-muted'}`}>
+                        {(idx + 1).toString().padStart(2, '0')}
+                      </span>
+                      <span className={`text-sm font-medium ${isCurrent ? 'text-quest-gold' : isPast ? 'line-through' : 'text-quest-text'}`}>
+                        {subject}
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {isCurrent && (
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest uppercase ${
+                          cyclePhase === 'break' ? 'bg-blue-500/20 text-blue-400' : 'bg-quest-gold/20 text-quest-gold'
+                        }`}>
+                          {cyclePhase === 'break' ? 'Pausa' : 'Em foco'}
+                        </span>
+                      )}
+                      {isPast && <CheckCircle2 size={14} className="text-quest-gold" />}
+                      {isDouble && isCurrent && (
+                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-[8px] font-bold tracking-widest uppercase">
+                          🔥 Duplo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button 
+              onClick={() => setCicloView('config')}
+              className="w-full p-3 border border-quest-gold-dark/30 text-quest-gold-dark hover:text-quest-gold hover:border-quest-gold transition-all uppercase tracking-widest text-xs font-serif"
+            >
+              Alterar Configurações
+            </button>
+            
+            <button 
+              onClick={resetCycle}
+              className="w-full p-3 border border-quest-red/30 text-quest-red/60 hover:text-quest-red hover:border-quest-red transition-all uppercase tracking-widest text-xs font-serif"
+            >
+              Reiniciar Ciclo
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white relative">
       <div className="fixed inset-0 pointer-events-none z-[50] shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]" />
       {showRain && <MedievalRain />}
       {showDragon && <DragonEncounter />}
       <DragonMascot />
+
+      {/* TOASTS */}
+      <div className="fixed top-4 right-4 z-[10001] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ x: 100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 100, opacity: 0 }}
+              className={`px-4 py-3 rounded-sm border-l-4 shadow-lg pointer-events-auto min-w-[250px] ${
+                toast.type === 'success' 
+                  ? 'bg-quest-panel border-green-500 text-green-100' 
+                  : 'bg-quest-panel border-quest-gold text-quest-gold'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {toast.type === 'success' ? <CheckCircle2 size={18} /> : <ShieldAlert size={18} />}
+                <span className="text-sm font-medium">{toast.message}</span>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
       
       {isDbSetupError && (
         <div className="max-w-6xl mx-auto mb-6 p-4 bg-green-900/80 border-2 border-quest-red text-white rounded-lg shadow-[0_0_20px_rgba(58,90,64,0.5)] flex flex-col items-center gap-3 text-center">
@@ -1252,6 +1843,13 @@ export default function App() {
           >
             <Trophy size={18} />
             SIMULADOS
+          </button>
+          <button 
+            onClick={() => setActiveTab('ciclo')} 
+            className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)] ${activeTab === 'ciclo' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
+          >
+            <Timer size={18} />
+            CICLO
           </button>
           <button onClick={handleLogout} className="flex items-center gap-2 hover:text-quest-gold transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)]">
             <LogOut size={18} />
@@ -1302,8 +1900,24 @@ export default function App() {
 
         {/* MISSÃO DO DIA */}
         <Panel>
-          <PanelHeader title={`PERGAMINHO DE MISSÕES - ${['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'][todayDayOfWeek]}`} />
+          <PanelHeader title="PERGAMINHO DE MISSÕES (CICLO ATUAL)" />
           <div className="p-2">
+            <div className="flex justify-end px-4 py-2">
+              <button 
+                onClick={() => setDailyMissionsLimit(prev => prev === 3 ? 4 : 3)}
+                className="flex items-center gap-2 text-[10px] font-serif tracking-widest uppercase px-3 py-1.5 rounded-lg border border-quest-gold/30 text-quest-gold hover:bg-quest-gold/10 transition-all shadow-[0_0_10px_rgba(184,155,94,0.1)] hover:shadow-[0_0_15px_rgba(184,155,94,0.2)]"
+              >
+                {dailyMissionsLimit === 3 ? (
+                  <>
+                    <Plus size={12} /> ADICIONAR 4ª MATÉRIA
+                  </>
+                ) : (
+                  <>
+                    <Minus size={12} /> VOLTAR PARA 3 MATÉRIAS
+                  </>
+                )}
+              </button>
+            </div>
             {todaysMissions.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-quest-text-muted italic mb-4">Nenhuma missão para hoje.</p>
@@ -1357,62 +1971,49 @@ export default function App() {
           </div>
         </Panel>
 
-        {/* MAPA DA JORNADA SEMANAL */}
+        {/* MAPA DA JORNADA (CICLO COMPLETO) */}
         <Panel>
-          <PanelHeader title="MAPA DA JORNADA SEMANAL" />
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-center border-collapse">
-              <thead>
-                <tr className="bg-quest-red-dark/20 text-quest-gold font-serif text-xs tracking-widest uppercase border-b border-quest-gold-dark/50">
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Tempo</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Domingo</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Segunda</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Terça</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Quarta</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Quinta</th>
-                  <th className="p-4 font-normal border-r border-quest-gold-dark/20">Sexta</th>
-                  <th className="p-4 font-normal">Sábado</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs text-quest-text-muted">
-                {activeWeeklySchedule.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center italic text-quest-text-muted">
-                      Todas as matérias desta jornada foram vencidas! Veja o Salão dos Heróis abaixo.
-                    </td>
-                  </tr>
-                ) : (
-                  activeWeeklySchedule.map((row, rowIdx) => (
-                    <tr key={rowIdx} className="border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50">
-                      <td className="p-4 border-r border-quest-gold-dark/20 font-mono">{row.time}</td>
-                      {row.days.map((subject, colIdx) => {
-                        const dateStr = weekDates[colIdx];
-                        const isChecked = !!completions[`${dateStr}_${subject}`];
-                        const isCompleted = completedSubjects.includes(subject);
-                        
-                        if (isCompleted) {
-                          return (
-                            <td key={colIdx} className="p-4 border-r border-quest-gold-dark/20 last:border-0 bg-quest-gold/5 opacity-20">
-                              {/* Hidden 100% Completed Subject */}
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td key={colIdx} className="p-4 border-r border-quest-gold-dark/20 last:border-0 cursor-pointer hover:bg-quest-panel-light/50 transition-colors" onClick={() => setSelectedSubject(subject)}>
-                            <div className={`flex flex-col items-center justify-center gap-1 transition-opacity ${isChecked ? 'opacity-40' : 'opacity-100'}`}>
-                              <span className={isChecked ? 'text-quest-text-muted line-through' : 'text-quest-text'}>
-                                {subject}
-                              </span>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <PanelHeader title="MAPA DA JORNADA (CICLO COMPLETO)" />
+          <div className="p-6">
+            <div className="flex flex-wrap justify-center gap-6 relative">
+              {studyCycle.map((subject, idx) => {
+                const isCheckedToday = !!completions[`${todayDateStr}_${subject}`];
+                const isLongTermCompleted = completedSubjects.includes(subject);
+                const isNextToStudy = todaysMissions.some(m => m.subject === subject && !m.completed);
+                
+                return (
+                  <div 
+                    key={idx} 
+                    className={`relative flex flex-col items-center group cursor-pointer transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
+                    onClick={() => setSelectedSubject(subject)}
+                  >
+                    <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                      isNextToStudy 
+                        ? 'bg-quest-gold/20 border-quest-gold shadow-[0_0_15px_rgba(184,155,94,0.6)] scale-110' 
+                        : isCheckedToday 
+                          ? 'bg-quest-red/10 border-quest-red/50' 
+                          : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
+                    }`}>
+                      {isCheckedToday ? (
+                        <CheckCircle2 className="text-quest-red" size={32} />
+                      ) : (
+                        <span className="font-serif text-quest-gold text-xl">{idx + 1}</span>
+                      )}
+                    </div>
+                    <div className="mt-3 text-center max-w-[120px]">
+                      <p className={`text-xs font-serif tracking-wider uppercase ${isNextToStudy ? 'text-quest-gold font-bold' : 'text-quest-text'}`}>
+                        {subject}
+                      </p>
+                      {isCheckedToday && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído Hoje</span>}
+                      {isNextToStudy && <span className="text-[10px] text-quest-gold font-bold uppercase mt-1 block">Próxima Missão</span>}
+                    </div>
+                    {idx < studyCycle.length - 1 && (
+                      <div className="hidden lg:block absolute -right-6 top-8 w-6 h-[2px] bg-quest-gold-dark/20"></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </Panel>
 
@@ -1720,10 +2321,10 @@ export default function App() {
           )}
         </div>
 
-        {/* HISTÓRICO SEMANAL */}
+        {/* HISTÓRICO DE JORNADA */}
         <div className="pt-4">
           <h2 className="font-serif text-quest-text text-lg tracking-widest uppercase mb-4 flex items-center gap-2">
-            <Calendar size={20} className="text-quest-gold-dark" /> HISTÓRICO SEMANAL
+            <Calendar size={20} className="text-quest-gold-dark" /> HISTÓRICO DE JORNADA
           </h2>
           <Panel className="p-6 space-y-6">
             {dynamicWeeklyHistory.map((week, idx) => (
@@ -1934,6 +2535,8 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {activeTab === 'ciclo' && renderCicloContent()}
 
         {/* FOOTER */}
         <footer className="pt-16 pb-8 text-center relative">
