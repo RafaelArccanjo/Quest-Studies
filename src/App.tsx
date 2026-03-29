@@ -12,105 +12,7 @@ import { cbTasksPages } from './data/cbTasksPages';
 import { vnTasksPages } from './data/vnTasksPages';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { motion, AnimatePresence } from 'motion/react';
-import { DragonIcon, KnightIcon, CrestLogo, BabyDragonIcon } from './components/Icons';
-
-// --- MASCOT COMPONENT ---
-const DragonMascot = () => {
-  const [pos, setPos] = useState({ x: 50, y: 80 });
-  const [isBreathingFire, setIsBreathingFire] = useState(false);
-  const [isBeingPetted, setIsBeingPetted] = useState(false);
-  const [direction, setDirection] = useState(1); // 1 for right, -1 for left
-
-  useEffect(() => {
-    const moveInterval = setInterval(() => {
-      if (isBeingPetted || isBreathingFire) return;
-
-      setPos(prev => {
-        const nextX = Math.max(10, Math.min(90, prev.x + (Math.random() - 0.5) * 20));
-        const nextY = Math.max(10, Math.min(90, prev.y + (Math.random() - 0.5) * 20));
-        if (nextX > prev.x) setDirection(1);
-        else if (nextX < prev.x) setDirection(-1);
-        return { x: nextX, y: nextY };
-      });
-
-      // Occasionally breathe fire
-      if (Math.random() > 0.7) {
-        setIsBreathingFire(true);
-        setTimeout(() => setIsBreathingFire(false), 2000);
-      }
-    }, 3000);
-
-    return () => clearInterval(moveInterval);
-  }, [isBeingPetted, isBreathingFire]);
-
-  const handlePet = () => {
-    setIsBeingPetted(true);
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2014/2014-preview.mp3');
-    audio.volume = 0.3;
-    audio.play().catch(() => {});
-    setTimeout(() => setIsBeingPetted(false), 2000);
-  };
-
-  return (
-    <motion.div
-      className="fixed z-[5000] cursor-pointer pointer-events-auto"
-      animate={{ 
-        left: `${pos.x}%`, 
-        top: `${pos.y}%`,
-        scale: isBeingPetted ? 1.2 : 1
-      }}
-      transition={{ duration: 2, ease: "easeInOut" }}
-      onClick={handlePet}
-    >
-      <div className="relative group">
-        {/* Fire Breath Effect */}
-        <AnimatePresence>
-          {isBreathingFire && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [1, 1.5, 1], opacity: [0, 1, 0] }}
-              exit={{ scale: 0, opacity: 0 }}
-              className="absolute -left-8 top-4 w-12 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full blur-sm"
-              style={{ transform: direction === 1 ? 'scaleX(1)' : 'scaleX(-1)' }}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Petting Hearts */}
-        <AnimatePresence>
-          {isBeingPetted && (
-            <motion.div
-              initial={{ y: 0, opacity: 0 }}
-              animate={{ y: -40, opacity: [0, 1, 0] }}
-              className="absolute -top-8 left-4 text-red-500"
-            >
-              ❤️
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.div
-          animate={{ 
-            rotate: isBeingPetted ? [0, -10, 10, 0] : [0, 2, -2, 0],
-            y: [0, -5, 0]
-          }}
-          transition={{ 
-            repeat: Infinity, 
-            duration: isBeingPetted ? 0.3 : 2 
-          }}
-          style={{ transform: `scaleX(${direction})` }}
-        >
-          <BabyDragonIcon className="w-16 h-16 text-[#84cc16] drop-shadow-[0_0_15px_rgba(132,204,22,0.6)]" />
-        </motion.div>
-
-        {/* Interaction Prompt */}
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
-          Me dê carinho!
-        </div>
-      </div>
-    </motion.div>
-  );
-};
+import { CrestLogo } from './components/Icons';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -120,7 +22,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-// --- MOCK DATA ---
+// --- REUSABLE COMPONENTS ---
 const studyCycle = [
   'Língua Portuguesa e Redação Oficial',
   'Direitos Humanos e Tratamento Penal',
@@ -348,136 +250,31 @@ const MedievalRain = () => {
   );
 };
 
-const DragonEncounter = () => {
-  return (
-    <div className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden flex items-center justify-center">
-      {/* Background Dimming */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.8, 0.8, 0] }}
-        transition={{ duration: 7, ease: "easeInOut" }}
-        className="absolute inset-0 bg-black/80"
-      />
-
-      {/* Dragon */}
-      <motion.div
-        initial={{ x: '100vw', y: '-20vh', scale: 0.5, opacity: 0 }}
-        animate={{ 
-          x: ['100vw', '10vw', '10vw', '-100vw'], 
-          y: ['-20vh', '0vh', '0vh', '-50vh'],
-          scale: [0.5, 3, 3, 1],
-          opacity: [0, 1, 1, 0],
-          rotate: [0, -10, 10, -10, 10, 0] // Aggressive shake
-        }}
-        transition={{ 
-          duration: 6, 
-          ease: "easeInOut",
-          rotate: { repeat: Infinity, duration: 0.15 } // Very fast shake
-        }}
-        className="absolute left-1/2 top-1/2 -translate-y-1/2 flex items-center"
-      >
-        {/* Left Head Fire Breath */}
-        <motion.div 
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: [0, 0, 2, 2, 0], opacity: [0, 0, 1, 1, 0] }}
-          transition={{ duration: 6, ease: "easeInOut", times: [0, 0.2, 0.25, 0.4, 0.45] }}
-          className="absolute right-[80%] top-[20%] h-48 w-[500px] bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-2xl rounded-full"
-          style={{ filter: 'drop-shadow(0 0 60px rgba(255,0,0,1))', transform: 'rotate(-15deg)' }}
-        />
-        {/* Right Head Fire Breath */}
-        <motion.div 
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: [0, 0, 2, 2, 0], opacity: [0, 0, 1, 1, 0] }}
-          transition={{ duration: 6, ease: "easeInOut", times: [0, 0.22, 0.27, 0.42, 0.47] }}
-          className="absolute right-[80%] top-[50%] h-48 w-[500px] bg-gradient-to-l from-red-600 via-orange-500 to-transparent origin-right blur-2xl rounded-full"
-          style={{ filter: 'drop-shadow(0 0 60px rgba(255,0,0,1))', transform: 'rotate(10deg)' }}
-        />
-        <DragonIcon className="w-80 h-80 text-red-700 drop-shadow-[0_0_50px_rgba(185,28,28,0.8)]" />
-      </motion.div>
-
-      {/* Knight */}
-      <motion.div
-        initial={{ x: '-100vw', y: '20vh', scale: 0.5, opacity: 0 }}
-        animate={{ 
-          x: ['-100vw', '-20vw', '-20vw', '-100vw'], 
-          y: ['20vh', '10vh', '10vh', '50vh'],
-          scale: [0.5, 2, 2, 1],
-          opacity: [0, 1, 1, 0]
-        }}
-        transition={{ duration: 7, ease: "easeInOut" }}
-        className="absolute left-1/2 top-1/2 -translate-y-1/2"
-      >
-        <KnightIcon className="w-40 h-40 text-quest-gold drop-shadow-[0_0_20px_rgba(184,155,94,0.8)] transform -scale-x-100" />
-      </motion.div>
-      
-      {/* Clash Flash */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: [0, 0, 1, 0], scale: [0, 0, 2, 0] }}
-        transition={{ duration: 7, ease: "easeInOut", times: [0, 0.24, 0.25, 0.35] }}
-        className="absolute w-full h-full bg-white mix-blend-overlay"
-      />
-    </div>
-  );
-};
-
 // --- MAIN APP ---
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showRain, setShowRain] = useState(false);
-  const [showDragon, setShowDragon] = useState(false);
 
   const triggerDragonEncounter = () => {
-    setShowDragon(true);
+    setShowRain(true);
     
-    // Angry Dragon Roar (Layered for intensity)
-    const roar1 = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
-    const roar2 = new Audio('https://assets.mixkit.co/active_storage/sfx/1192/1192-preview.mp3');
-    roar1.volume = 0.9;
-    roar2.volume = 0.7;
-    roar2.playbackRate = 0.8; // Deeper roar
-    roar1.play().catch(e => console.log("Audio play failed", e));
-    setTimeout(() => roar2.play().catch(e => console.log("Audio play failed", e)), 200);
+    // Quick, low-volume metal clink
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
+    audio.volume = 0.25;
+    audio.play().catch(e => console.log("Audio play failed", e));
 
-    // Intense Medieval Battle Music
-    const music = new Audio('https://assets.mixkit.co/active_storage/sfx/1997/1997-preview.mp3');
-    music.volume = 0.8;
-    music.play().catch(e => console.log("Audio play failed", e));
-    
-    // Stop music after 10 seconds
-    setTimeout(() => {
-      music.pause();
-      music.currentTime = 0;
-    }, 10000);
-
-    // Knight Sword Clash & Shield Impact
-    setTimeout(() => {
-      const clash = new Audio('https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3');
-      clash.volume = 0.9;
-      clash.play().catch(e => console.log("Audio play failed", e));
-    }, 1500);
-
-    setTimeout(() => setShowDragon(false), 6000);
+    setTimeout(() => setShowRain(false), 5000); // Shorter rain duration
   };
 
   const triggerMedievalEffects = () => {
-    // Upbeat Medieval Fanfare (Animated Music)
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2012/2012-preview.mp3');
-    audio.volume = 0.5;
+    // Quick, low-volume metal clink
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
+    audio.volume = 0.2;
     audio.play().catch(e => console.log("Audio play failed", e));
     
-    // Stop audio after 10 seconds
-    setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }, 10000);
-
-    // Rain happens with 40% probability
-    if (Math.random() < 0.4) {
-      setShowRain(true);
-      setTimeout(() => setShowRain(false), 10000);
-    }
+    setShowRain(true);
+    setTimeout(() => setShowRain(false), 4000); // Shorter rain duration
   };
 
   const playClickSound = () => {
@@ -1777,8 +1574,6 @@ export default function App() {
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white relative">
       <div className="fixed inset-0 pointer-events-none z-[50] shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]" />
       {showRain && <MedievalRain />}
-      {showDragon && <DragonEncounter />}
-      <DragonMascot />
 
       {/* TOASTS */}
       <div className="fixed top-4 right-4 z-[10001] flex flex-col gap-2 pointer-events-none">
