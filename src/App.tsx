@@ -34,7 +34,8 @@ const studyCycle = [
   'Informática',
   'Lei de Execução Penal',
   'Vendas e Negociação',
-  'Conhecimentos Bancários'
+  'Conhecimentos Bancários',
+  'Matemática'
 ];
 
 const battleTable = [
