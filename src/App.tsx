@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
   CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
-  Crown, Scroll, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2
+  Crown, Scroll, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2, RefreshCw
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from './supabase';
@@ -214,8 +214,8 @@ const PanelHeader = ({ title, icon: Icon }: { title: string, icon?: React.Elemen
   </div>
 );
 
-const ProgressBar = ({ progress, className = '' }: { progress: number, className?: string }) => (
-  <div className={`h-2 bg-quest-panel-light border border-quest-gold-dark/50 rounded-full overflow-hidden shadow-inner ${className}`}>
+const ProgressBar = ({ progress, className = '', onClick }: { progress: number, className?: string, onClick?: () => void }) => (
+  <div className={`h-2 bg-quest-panel-light border border-quest-gold-dark/50 rounded-full overflow-hidden shadow-inner ${className}`} onClick={onClick}>
     <div 
       className="h-full bg-gradient-to-r from-quest-red-dark via-quest-red to-quest-gold shadow-[0_0_10px_rgba(58,90,64,0.5)] transition-all duration-700 ease-out"
       style={{ width: `${progress}%` }}
@@ -350,19 +350,51 @@ export default function App() {
   const [selectedCycleSubjects, setSelectedCycleSubjects] = useState<string[]>([]);
   const [toasts, setToasts] = useState<any[]>([]);
 
-  const cycleSubjects = [
-    "Língua Portuguesa e Redação Oficial",
-    "Direitos Humanos e Tratamento Penal",
-    "Direito Administrativo",
-    "Direito Penal",
-    "Administração Pública",
-    "Direito Constitucional",
-    "Ética Profissional",
-    "Informática",
-    "Lei de Execução Penal",
-    "Vendas e Negociação",
-    "Conhecimentos Bancários"
-  ];
+  const [reviewSubjects, setReviewSubjects] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('reviewSubjects');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('reviewSubjects', JSON.stringify(reviewSubjects));
+  }, [reviewSubjects]);
+
+  const toggleReviewSubject = (subject: string) => {
+    setReviewSubjects(prev => ({
+      ...prev,
+      [subject]: !prev[subject]
+    }));
+    addToast(reviewSubjects[subject] ? `📚 ${subject} removida da revisão.` : `🔄 ${subject} marcada para revisão!`, "success");
+  };
+
+  const weekDates = useMemo(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - day + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+  }, []);
+
+  const completedSubjects = useMemo(() => {
+    return studyCycle.filter(subject => {
+      // A subject is completed if it has been finished 2 times in the current week
+      let count = 0;
+      weekDates.forEach(date => {
+        if (completions[`${date}_${subject}`]) count++;
+      });
+      return count >= 2;
+    });
+  }, [completions, studyCycle, weekDates]);
+
+  const activeStudyCycle = useMemo(() => {
+    return studyCycle.filter(subject => !completedSubjects.includes(subject) || reviewSubjects[subject]);
+  }, [completedSubjects, studyCycle, reviewSubjects]);
+
+  const cycleSubjects = activeStudyCycle;
 
   const addToast = (message: string, type: 'success' | 'warning' = 'success') => {
     const id = Date.now();
@@ -501,35 +533,8 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('admin123');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  const weekDates = useMemo(() => {
-    const today = new Date();
-    const day = today.getDay();
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - day + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates;
-  }, []);
-
   const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
   const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-
-  const completedSubjects = useMemo(() => {
-    return studyCycle.filter(subject => {
-      // A subject is completed if it has been finished 2 times in the current week
-      let count = 0;
-      weekDates.forEach(date => {
-        if (completions[`${date}_${subject}`]) count++;
-      });
-      return count >= 2;
-    });
-  }, [completions, studyCycle, weekDates]);
-
-  const activeStudyCycle = useMemo(() => {
-    return studyCycle.filter(subject => !completedSubjects.includes(subject));
-  }, [completedSubjects, studyCycle]);
 
   const allContests = useMemo(() => [...CONTESTS, ...userContests], [userContests]);
 
@@ -799,12 +804,12 @@ export default function App() {
   }, [weekDates, completions]);
 
   const currentWeekCycles = useMemo(() => {
-    return weekDates.reduce((acc, date) => {
+    return studyCycle.reduce((acc, subject) => {
       let count = 0;
-      studyCycle.forEach(subject => {
+      weekDates.forEach(date => {
         if (completions[`${date}_${subject}`]) count++;
       });
-      return acc + count;
+      return acc + Math.min(count, 2);
     }, 0);
   }, [weekDates, completions, studyCycle]);
 
@@ -875,23 +880,16 @@ export default function App() {
   }, [weekDates, completions, studyCycle]);
 
   const dynamicBattleTable = useMemo(() => {
-    return Object.keys(battleStats)
-      .filter(subject => {
-        const stats = battleStats[subject];
-        const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-        // Hide if 100% progress OR if all tasks are completed
-        return progress < 100 && !completedSubjects.includes(subject);
-      })
-      .map(subject => {
-        const stats = battleStats[subject];
-        const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-        return {
-          subject,
-          conquest: `${stats.completed}/${stats.total}`,
-          progress
-        };
-      });
-  }, [battleStats, completedSubjects]);
+    return studyCycle.map(subject => {
+      const stats = battleStats[subject] || { completed: 0, total: 2 };
+      const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+      return {
+        subject,
+        conquest: `${stats.completed}/${stats.total}`,
+        progress
+      };
+    });
+  }, [battleStats, studyCycle]);
 
   const completedSubjectsData = useMemo(() => {
     return completedSubjects.map(subject => {
@@ -1811,6 +1809,8 @@ export default function App() {
                 const isCheckedToday = !!completions[`${todayDateStr}_${subject}`];
                 const isLongTermCompleted = completedSubjects.includes(subject);
                 const isNextToStudy = todaysMissions.some(m => m.subject === subject && !m.completed);
+                const isReview = !!reviewSubjects[subject];
+                const isNew = !isLongTermCompleted && !isReview;
                 
                 return (
                   <div 
@@ -1818,17 +1818,35 @@ export default function App() {
                     className={`relative flex flex-col items-center group cursor-pointer transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
                     onClick={() => setSelectedSubject(subject)}
                   >
-                    <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                    <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative ${
                       isNextToStudy 
                         ? 'bg-quest-gold/20 border-quest-gold shadow-[0_0_15px_rgba(184,155,94,0.6)] scale-110' 
                         : isCheckedToday 
                           ? 'bg-quest-red/10 border-quest-red/50' 
-                          : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
+                          : isNew
+                            ? 'bg-yellow-400/10 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.4)]'
+                            : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
                     }`}>
                       {isCheckedToday ? (
                         <CheckCircle2 className="text-quest-red" size={32} />
                       ) : (
                         <span className="font-serif text-quest-gold text-xl">{idx + 1}</span>
+                      )}
+
+                      {/* Símbolos de Status */}
+                      {!isCheckedToday && !isLongTermCompleted && (
+                        <div className="absolute -top-1 -right-1 flex gap-0.5">
+                          {isNew && (
+                            <div className="bg-yellow-400 rounded-full p-1 shadow-[0_0_5px_rgba(250,204,21,0.6)] border border-black/20" title="Matéria Nova">
+                              <Sparkles size={10} className="text-black" />
+                            </div>
+                          )}
+                          {isReview && (
+                            <div className="bg-quest-red rounded-full p-1 shadow-[0_0_5px_rgba(58,90,64,0.6)] border border-quest-gold-dark/30" title="Revisão">
+                              <RefreshCw size={10} className="text-quest-gold" />
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="mt-3 text-center max-w-[120px]">
@@ -1837,6 +1855,12 @@ export default function App() {
                       </p>
                       {isCheckedToday && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído Hoje</span>}
                       {isNextToStudy && <span className="text-[10px] text-quest-gold font-bold uppercase mt-1 block">Próxima Missão</span>}
+                      {!isCheckedToday && !isLongTermCompleted && (
+                        <div className="flex justify-center gap-1 mt-1">
+                          {isNew && <span className="text-[8px] text-yellow-400 font-bold uppercase px-1 bg-yellow-400/10 rounded-sm border border-yellow-400/20">Nova</span>}
+                          {isReview && <span className="text-[8px] text-quest-gold font-bold uppercase px-1 bg-quest-red/20 rounded-sm border border-quest-red/30">Revisão</span>}
+                        </div>
+                      )}
                     </div>
                     {idx < studyCycle.length - 1 && (
                       <div className="hidden lg:block absolute -right-6 top-8 w-6 h-[2px] bg-quest-gold-dark/20"></div>
@@ -1874,23 +1898,49 @@ export default function App() {
                       </td>
                     </tr>
                   ) : (
-                    dynamicBattleTable.map((row, idx) => (
-                      <tr key={idx} className={`border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50 cursor-pointer ${completedSubjects.includes(row.subject) ? 'bg-quest-gold/5' : ''}`} onClick={() => setSelectedSubject(row.subject)}>
-                        <td className="p-4 border-r border-quest-gold-dark/20 text-quest-text">
-                          <div className="flex items-center gap-2">
-                            {row.subject}
-                            {completedSubjects.includes(row.subject) && (
-                              <span className="text-[9px] bg-quest-gold/20 text-quest-gold px-1.5 py-0.5 rounded-full border border-quest-gold/30 font-serif tracking-tighter">100%</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 border-r border-quest-gold-dark/20 text-center font-mono text-quest-text-muted">{row.conquest}</td>
-                        <td className="p-4 flex items-center gap-3">
-                          <ProgressBar progress={row.progress} className="flex-1" />
-                          <span className="font-mono text-quest-text-muted w-8 text-right">{row.progress}%</span>
-                        </td>
-                      </tr>
-                    ))
+                    dynamicBattleTable.map((row, idx) => {
+                      const isReview = !!reviewSubjects[row.subject];
+                      const isNew = !completedSubjects.includes(row.subject) && !isReview;
+                      const isCompleted = row.progress === 100;
+
+                      return (
+                        <tr key={idx} className={`border-b border-quest-gold-dark/20 last:border-0 hover:bg-quest-panel-light/50 cursor-pointer ${isCompleted ? 'bg-quest-gold/5' : ''}`}>
+                          <td className="p-4 border-r border-quest-gold-dark/20 text-quest-text" onClick={() => setSelectedSubject(row.subject)}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {row.subject}
+                              {isReview && (
+                                <span className="text-[9px] bg-quest-red/20 text-quest-red px-1.5 py-0.5 rounded-full border border-quest-red/30 font-serif tracking-tighter uppercase">Revisão</span>
+                              )}
+                              {isNew && (
+                                <span className="text-[9px] bg-quest-gold/20 text-quest-gold px-1.5 py-0.5 rounded-full border border-quest-gold/30 font-serif tracking-tighter uppercase">Matéria Nova</span>
+                              )}
+                              {isCompleted && (
+                                <span className="text-[9px] bg-quest-gold/20 text-quest-gold px-1.5 py-0.5 rounded-full border border-quest-gold/30 font-serif tracking-tighter uppercase">100%</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4 border-r border-quest-gold-dark/20 text-center font-mono text-quest-text-muted" onClick={() => setSelectedSubject(row.subject)}>
+                            {row.conquest}
+                          </td>
+                          <td className="p-4 flex items-center gap-3">
+                            <ProgressBar progress={row.progress} className="flex-1" onClick={() => setSelectedSubject(row.subject)} />
+                            <span className="font-mono text-quest-text-muted w-8 text-right" onClick={() => setSelectedSubject(row.subject)}>
+                              {`${row.progress}%`}
+                            </span>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReviewSubject(row.subject);
+                              }}
+                              className={`p-1.5 rounded-sm border transition-all ${isReview ? 'bg-quest-red/20 border-quest-red text-quest-red' : 'bg-quest-panel-light border-quest-gold-dark/30 text-quest-text-muted hover:border-quest-gold hover:text-quest-gold'}`}
+                              title={isReview ? "Remover da Revisão" : "Marcar para Revisão"}
+                            >
+                              <RefreshCw size={14} className={isReview ? "animate-spin-slow" : ""} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1898,7 +1948,7 @@ export default function App() {
             {completedSubjectsData.length > 0 && dynamicBattleTable.length > 0 && (
               <div className="p-2 text-center border-t border-quest-gold-dark/10">
                 <p className="text-[10px] text-quest-gold-dark italic uppercase tracking-widest">
-                  Matérias 100% concluídas são movidas para o Salão dos Heróis no final da página.
+                  Matérias 100% concluídas são movidas para o Salão dos Heróis, a menos que marcadas para revisão.
                 </p>
               </div>
             )}
