@@ -11,7 +11,7 @@ import { cbTasksContent } from './data/cbTasksContent';
 import { cbTasksPages } from './data/cbTasksPages';
 import { vnTasksPages } from './data/vnTasksPages';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { CrestLogo } from './components/Icons';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -23,7 +23,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 // --- REUSABLE COMPONENTS ---
-const studyCycle = [
+const DEFAULT_STUDY_CYCLE = [
   'Língua Portuguesa e Redação Oficial',
   'Direitos Humanos e Tratamento Penal',
   'Direito Administrativo',
@@ -258,6 +258,15 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showRain, setShowRain] = useState(false);
+
+  const [studyCycle, setStudyCycle] = useState<string[]>(() => {
+    const saved = localStorage.getItem('studyCycleOrder');
+    return saved ? JSON.parse(saved) : DEFAULT_STUDY_CYCLE;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('studyCycleOrder', JSON.stringify(studyCycle));
+  }, [studyCycle]);
 
   const triggerDragonEncounter = () => {
     setShowRain(true);
@@ -1868,7 +1877,18 @@ export default function App() {
         <Panel>
           <PanelHeader title="MAPA DA JORNADA (CICLO COMPLETO)" />
           <div className="p-6">
-            <div className="flex flex-wrap justify-center gap-6 relative">
+            <div className="flex justify-end mb-4">
+              <button 
+                onClick={() => {
+                  setStudyCycle(DEFAULT_STUDY_CYCLE);
+                  addToast("Ordem do ciclo restaurada!", "success");
+                }}
+                className="text-[10px] font-serif text-quest-gold/60 hover:text-quest-gold transition-colors flex items-center gap-1 border border-quest-gold/20 px-2 py-0.5 rounded-sm bg-quest-gold/5"
+              >
+                <RotateCcw size={10} /> Restaurar Ordem Padrão
+              </button>
+            </div>
+            <Reorder.Group axis="x" values={studyCycle} onReorder={setStudyCycle} className="flex flex-wrap justify-center gap-6 relative">
               {studyCycle.map((subject, idx) => {
                 const isCheckedToday = !!completions[`${todayDateStr}_${subject}`];
                 const isLongTermCompleted = completedSubjects.includes(subject);
@@ -1877,9 +1897,10 @@ export default function App() {
                 const isNew = !isLongTermCompleted && !isReview;
                 
                 return (
-                  <div 
-                    key={idx} 
-                    className={`relative flex flex-col items-center group cursor-pointer transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
+                  <Reorder.Item 
+                    key={subject} 
+                    value={subject}
+                    className={`relative flex flex-col items-center group cursor-grab active:cursor-grabbing transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
                     onClick={() => setSelectedSubject(subject)}
                   >
                     <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative ${
@@ -1933,10 +1954,10 @@ export default function App() {
                     {idx < studyCycle.length - 1 && (
                       <div className="hidden lg:block absolute -right-6 top-8 w-6 h-[2px] bg-quest-gold-dark/20"></div>
                     )}
-                  </div>
+                  </Reorder.Item>
                 );
               })}
-            </div>
+            </Reorder.Group>
           </div>
         </Panel>
 
