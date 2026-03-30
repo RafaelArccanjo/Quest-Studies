@@ -39,18 +39,18 @@ const studyCycle = [
 ];
 
 const battleTable = [
-  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/2', progress: 0 },
-  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/2', progress: 0 },
-  { subject: 'Direito Administrativo', conquest: '0/2', progress: 0 },
-  { subject: 'Direito Penal', conquest: '0/2', progress: 0 },
-  { subject: 'Administração Pública', conquest: '0/2', progress: 0 },
-  { subject: 'Direito Constitucional', conquest: '0/2', progress: 0 },
-  { subject: 'Ética Profissional', conquest: '0/2', progress: 0 },
-  { subject: 'Informática', conquest: '0/2', progress: 0 },
-  { subject: 'Lei de Execução Penal', conquest: '0/2', progress: 0 },
-  { subject: 'Vendas e Negociação', conquest: '0/2', progress: 0 },
-  { subject: 'Conhecimentos Bancários', conquest: '0/2', progress: 0 },
-  { subject: 'Matemática', conquest: '0/2', progress: 0 },
+  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/0', progress: 0 },
+  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/0', progress: 0 },
+  { subject: 'Direito Administrativo', conquest: '0/0', progress: 0 },
+  { subject: 'Direito Penal', conquest: '0/0', progress: 0 },
+  { subject: 'Administração Pública', conquest: '0/0', progress: 0 },
+  { subject: 'Direito Constitucional', conquest: '0/0', progress: 0 },
+  { subject: 'Ética Profissional', conquest: '0/0', progress: 0 },
+  { subject: 'Informática', conquest: '0/0', progress: 0 },
+  { subject: 'Lei de Execução Penal', conquest: '0/0', progress: 0 },
+  { subject: 'Vendas e Negociação', conquest: '0/40', progress: 0 },
+  { subject: 'Conhecimentos Bancários', conquest: '0/48', progress: 0 },
+  { subject: 'Matemática', conquest: '0/0', progress: 0 },
 ];
 
 const weeklyHistory = [
@@ -60,46 +60,16 @@ const weeklyHistory = [
 ];
 
 const subjectTasks: Record<string, { id: string, title: string }[]> = {
-  'Língua Portuguesa e Redação Oficial': [
-    { id: 'lp_1', title: 'Tarefa 1: Ortografia e Acentuação' },
-    { id: 'lp_2', title: 'Tarefa 2: Morfologia e Sintaxe' },
-  ],
-  'Direitos Humanos e Tratamento Penal': [
-    { id: 'dh_1', title: 'Tarefa 1: Declaração Universal dos Direitos Humanos' },
-    { id: 'dh_2', title: 'Tarefa 2: Regras de Mandela' },
-  ],
-  'Direito Administrativo': [
-    { id: 'da_1', title: 'Tarefa 1: Princípios da Administração Pública' },
-    { id: 'da_2', title: 'Tarefa 2: Atos Administrativos' },
-  ],
-  'Direito Penal': [
-    { id: 'dp_1', title: 'Tarefa 1: Teoria do Crime' },
-    { id: 'dp_2', title: 'Tarefa 2: Crimes contra a Administração Pública' },
-  ],
-  'Administração Pública': [
-    { id: 'ap_1', title: 'Tarefa 1: Gestão de Pessoas' },
-    { id: 'ap_2', title: 'Tarefa 2: Processo Administrativo' },
-  ],
-  'Direito Constitucional': [
-    { id: 'dc_1', title: 'Tarefa 1: Direitos e Garantias Fundamentais' },
-    { id: 'dc_2', title: 'Tarefa 2: Organização do Estado' },
-  ],
-  'Ética Profissional': [
-    { id: 'et_1', title: 'Tarefa 1: Código de Ética do Servidor Público' },
-    { id: 'et_2', title: 'Tarefa 2: Lei de Improbidade Administrativa' },
-  ],
-  'Informática': [
-    { id: 'inf_1', title: 'Tarefa 1: Hardware e Software' },
-    { id: 'inf_2', title: 'Tarefa 2: Redes e Internet' },
-  ],
-  'Lei de Execução Penal': [
-    { id: 'lep_1', title: 'Tarefa 1: Disposições Gerais e do Objeto da Execução' },
-    { id: 'lep_2', title: 'Tarefa 2: Dos Órgãos da Execução Penal' },
-  ],
-  'Matemática': [
-    { id: 'mat_1', title: 'Tarefa 1: Raciocínio Lógico' },
-    { id: 'mat_2', title: 'Tarefa 2: Matemática Financeira' },
-  ],
+  'Língua Portuguesa e Redação Oficial': [],
+  'Direitos Humanos e Tratamento Penal': [],
+  'Direito Administrativo': [],
+  'Direito Penal': [],
+  'Administração Pública': [],
+  'Direito Constitucional': [],
+  'Ética Profissional': [],
+  'Informática': [],
+  'Lei de Execução Penal': [],
+  'Matemática': [],
   'Conhecimentos Bancários': [
     { id: 'cb_1', title: 'Dia 1: TAREFA 1 – Estudo da Aula 00 (toda a teoria) + resolver 12 questões' },
     { id: 'cb_2', title: 'Dia 2: TAREFA 2 – Revisão da Aula 00 + resolver questões 13 a 43' },
@@ -332,6 +302,71 @@ export default function App() {
   const [simuladoModalTab, setSimuladoModalTab] = useState<'registrar' | 'novo_concurso'>('registrar');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'simulados' | 'ciclo'>('dashboard');
   const [cicloView, setCicloView] = useState<'ativo' | 'config' | 'historico'>('config');
+  const [subjectModalTab, setSubjectModalTab] = useState<'tasks' | 'notes'>('tasks');
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [currentNoteText, setCurrentNoteText] = useState('');
+
+  useEffect(() => {
+    if (selectedSubject) {
+      setSubjectModalTab('tasks');
+      setIsAddingNote(false);
+      setCurrentNoteText('');
+    }
+  }, [selectedSubject]);
+
+  const [subjectNotes, setSubjectNotes] = useState<Record<string, {id: string, date: string, text: string}[]>>(() => {
+    const saved = localStorage.getItem('subjectNotes');
+    if (!saved) return {};
+    try {
+      const parsed = JSON.parse(saved);
+      const migrated: Record<string, {id: string, date: string, text: string}[]> = {};
+      Object.keys(parsed).forEach(key => {
+        if (Array.isArray(parsed[key])) {
+          migrated[key] = parsed[key];
+        } else if (typeof parsed[key] === 'string') {
+          migrated[key] = [{
+            id: 'legacy-' + Math.random().toString(36).substr(2, 9),
+            date: 'Antiga',
+            text: parsed[key]
+          }];
+        }
+      });
+      return migrated;
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('subjectNotes', JSON.stringify(subjectNotes));
+  }, [subjectNotes]);
+
+  const saveSubjectNote = (subject: string) => {
+    if (!currentNoteText.trim()) return;
+
+    const newNote = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: new Date().toLocaleDateString('pt-BR'),
+      text: currentNoteText
+    };
+
+    setSubjectNotes(prev => ({
+      ...prev,
+      [subject]: [newNote, ...(prev[subject] || [])]
+    }));
+    
+    setCurrentNoteText('');
+    setIsAddingNote(false);
+    addToast("Anotação de revisão salva!", "success");
+  };
+
+  const deleteSubjectNote = (subject: string, noteId: string) => {
+    setSubjectNotes(prev => ({
+      ...prev,
+      [subject]: prev[subject].filter(note => note.id !== noteId)
+    }));
+    addToast("Anotação excluída.", "success");
+  };
 
   // --- CICLO DE ESTUDOS STATE ---
   const [cycleQueue, setCycleQueue] = useState<string[]>([]);
@@ -535,6 +570,21 @@ export default function App() {
 
   const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
   const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const flashcardHistory = useMemo(() => {
+    const history = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dStr = d.toISOString().split('T')[0];
+      history.push({
+        date: dStr,
+        completed: !!completions[`${dStr}_Flashcards`]
+      });
+    }
+    return history;
+  }, [completions]);
 
   const allContests = useMemo(() => [...CONTESTS, ...userContests], [userContests]);
 
@@ -1111,6 +1161,7 @@ export default function App() {
           total_score: totalScore,
         }).eq('id', editingSimulado.id);
         if (error) throw error;
+        addToast("⚔️ Simulado atualizado com sucesso!", "success");
         setEditingSimulado(null);
       } else {
         const { error } = await supabase.from('detailed_simulados').insert({
@@ -1122,11 +1173,13 @@ export default function App() {
           date: new Date().toISOString().split('T')[0]
         });
         if (error) throw error;
+        addToast("🏆 Simulado registrado com sucesso!", "success");
       }
       setNewDetailedSimulado({ title: '', contestId: 'bb', subjectScores: {} });
       setIsSimuladoModalOpen(false);
     } catch (err: any) {
       console.error("Erro ao registrar simulado detalhado: " + err.message);
+      addToast("❌ Erro ao salvar simulado: " + err.message, "warning");
     }
   };
 
@@ -1792,7 +1845,18 @@ export default function App() {
           >
             <div className={`flex items-center gap-3 ${!!completions[`${todayDateStr}_Flashcards`] ? 'text-quest-text-muted line-through' : 'text-quest-gold-dark hover:text-quest-gold'}`}>
               <BookOpen size={18} />
-              <span className="font-serif tracking-widest text-sm uppercase">FLASHCARDS DO DIA</span>
+              <div className="flex flex-col">
+                <span className="font-serif tracking-widest text-sm uppercase">FLASHCARDS DO DIA</span>
+                <div className="flex gap-1 mt-1.5">
+                  {flashcardHistory.map((day, idx) => (
+                    <div 
+                      key={idx}
+                      className={`w-1 h-1 rounded-full transition-colors duration-500 ${day.completed ? 'bg-quest-red shadow-[0_0_4px_rgba(239,68,68,0.6)]' : 'bg-quest-gold-dark/20'}`}
+                      title={day.date}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="text-quest-gold-dark">
               {!!completions[`${todayDateStr}_Flashcards`] ? <CheckSquare className="text-quest-red" size={24} /> : <Square size={24} />}
@@ -1824,29 +1888,34 @@ export default function App() {
                         : isCheckedToday 
                           ? 'bg-quest-red/10 border-quest-red/50' 
                           : isNew
-                            ? 'bg-yellow-400/10 border-yellow-400/50 shadow-[0_0_10px_rgba(250,204,21,0.4)]'
+                            ? 'bg-yellow-400/20 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] scale-105'
                             : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
                     }`}>
                       {isCheckedToday ? (
                         <CheckCircle2 className="text-quest-red" size={32} />
                       ) : (
-                        <span className="font-serif text-quest-gold text-xl">{idx + 1}</span>
+                        <span className={`font-serif text-xl ${isNew ? 'text-yellow-400 font-bold' : 'text-quest-gold'}`}>{idx + 1}</span>
                       )}
 
                       {/* Símbolos de Status */}
                       {!isCheckedToday && !isLongTermCompleted && (
-                        <div className="absolute -top-1 -right-1 flex gap-0.5">
+                        <div className="absolute -top-2 -right-2 flex flex-col gap-1">
                           {isNew && (
-                            <div className="bg-yellow-400 rounded-full p-1 shadow-[0_0_5px_rgba(250,204,21,0.6)] border border-black/20" title="Matéria Nova">
-                              <Sparkles size={10} className="text-black" />
+                            <div className="bg-yellow-400 rounded-full p-1.5 shadow-[0_0_8px_rgba(250,204,21,0.8)] border-2 border-black/20 animate-pulse" title="Matéria Nova">
+                              <Sparkles size={12} className="text-black" />
                             </div>
                           )}
                           {isReview && (
-                            <div className="bg-quest-red rounded-full p-1 shadow-[0_0_5px_rgba(58,90,64,0.6)] border border-quest-gold-dark/30" title="Revisão">
-                              <RefreshCw size={10} className="text-quest-gold" />
+                            <div className="bg-quest-red rounded-full p-1.5 shadow-[0_0_8px_rgba(58,90,64,0.6)] border-2 border-quest-gold-dark/30" title="Revisão">
+                              <RefreshCw size={12} className="text-quest-gold" />
                             </div>
                           )}
                         </div>
+                      )}
+                      
+                      {/* Destaque de Próxima Missão (Linha Brilhosa) */}
+                      {isNextToStudy && (
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-quest-gold to-transparent shadow-[0_0_15px_rgba(184,155,94,1)] rounded-full animate-pulse" />
                       )}
                     </div>
                     <div className="mt-3 text-center max-w-[120px]">
@@ -1854,10 +1923,9 @@ export default function App() {
                         {subject}
                       </p>
                       {isCheckedToday && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído Hoje</span>}
-                      {isNextToStudy && <span className="text-[10px] text-quest-gold font-bold uppercase mt-1 block">Próxima Missão</span>}
                       {!isCheckedToday && !isLongTermCompleted && (
                         <div className="flex justify-center gap-1 mt-1">
-                          {isNew && <span className="text-[8px] text-yellow-400 font-bold uppercase px-1 bg-yellow-400/10 rounded-sm border border-yellow-400/20">Nova</span>}
+                          {isNew && <span className="text-[8px] text-yellow-400 font-bold uppercase px-1 bg-yellow-400/20 rounded-sm border border-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.4)]">Nova</span>}
                           {isReview && <span className="text-[8px] text-quest-gold font-bold uppercase px-1 bg-quest-red/20 rounded-sm border border-quest-red/30">Revisão</span>}
                         </div>
                       )}
@@ -2326,6 +2394,15 @@ export default function App() {
                     const isApproved = simulado.totalScore >= activeContest.cutoffScore;
                     const isWarning = simulado.totalScore >= activeContest.warningScore && !isApproved;
                     
+                    // Calculate totals on the fly
+                    let totalQuestions = 0;
+                    let correctQuestions = 0;
+                    activeContest.subjects.forEach((sub: any) => {
+                      const score = simulado.subjectScores[sub.name] || 0;
+                      totalQuestions += sub.questions;
+                      correctQuestions += score;
+                    });
+
                     return (
                       <div key={simulado.id}>
                         <Panel className="p-0 overflow-hidden">
@@ -2339,9 +2416,14 @@ export default function App() {
                               <p className={`font-serif text-4xl ${isApproved ? 'text-quest-gold' : isWarning ? 'text-yellow-500' : 'text-red-400'}`}>
                                 {simulado.totalScore.toFixed(1)}
                               </p>
-                              <p className={`text-xs tracking-widest uppercase ${isApproved ? 'text-quest-gold' : isWarning ? 'text-yellow-500' : 'text-red-400'}`}>
+                              <p className={`text-[10px] tracking-widest uppercase mb-1 ${isApproved ? 'text-quest-gold' : isWarning ? 'text-yellow-500' : 'text-red-400'}`}>
                                 {isApproved ? 'APROVADO' : 'REPROVADO'}
                               </p>
+                              {totalQuestions > 0 && (
+                                <p className="text-[10px] text-quest-text-muted font-mono">
+                                  {correctQuestions}/{totalQuestions} ACERTOS ({((correctQuestions / totalQuestions) * 100).toFixed(1)}%)
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-1">
                               <button 
@@ -2524,6 +2606,30 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Resumo em tempo real */}
+                  {(() => {
+                    const contest = allContests.find(c => c.id === newDetailedSimulado.contestId);
+                    if (!contest) return null;
+                    let totalScore = 0;
+                    let totalQuestions = 0;
+                    let correctQuestions = 0;
+                    contest.subjects.forEach((sub: any) => {
+                      const score = newDetailedSimulado.subjectScores[sub.name] || 0;
+                      totalScore += score * sub.weight;
+                      totalQuestions += sub.questions;
+                      correctQuestions += score;
+                    });
+                    return (
+                      <div className="bg-black/40 p-4 rounded-sm border border-quest-gold-dark/30 flex justify-between items-center shadow-inner">
+                        <div className="text-xs text-quest-text-muted uppercase tracking-widest font-serif">Resumo do Desempenho</div>
+                        <div className="text-right">
+                          <p className="text-2xl font-serif text-quest-gold">{totalScore.toFixed(1)} <span className="text-xs opacity-50">/ 100.0</span></p>
+                          <p className="text-[10px] text-quest-text-muted uppercase tracking-tighter">{correctQuestions} / {totalQuestions} acertos ({((correctQuestions / totalQuestions) * 100 || 0).toFixed(1)}%)</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   <div className="flex justify-end pt-4 border-t border-quest-gold-dark/20">
                     <button onClick={addDetailedSimulado} className="medieval-button flex items-center justify-center gap-2">
@@ -2647,66 +2753,160 @@ export default function App() {
             className="bg-quest-panel border-2 border-quest-gold-dark rounded-sm max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="flex justify-between items-center p-4 border-b border-quest-gold-dark/50 bg-quest-red-dark">
-              <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase">{selectedSubject} - Tarefas</h2>
+              <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase">{selectedSubject}</h2>
               <button onClick={() => setSelectedSubject(null)} className="text-quest-gold hover:text-white transition-colors">
                 <X size={24} />
               </button>
             </div>
-            {subjectTasks[selectedSubject] && (
-              <div className="px-4 pt-4 pb-2 border-b border-quest-gold-dark/20 bg-quest-panel">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-quest-text-muted uppercase tracking-widest font-serif">Progresso das Tarefas</span>
-                  <span className="text-xs text-quest-gold font-mono">
-                    {subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length} / {subjectTasks[selectedSubject].length}
-                  </span>
+
+            {/* TAB BAR */}
+            <div className="flex border-b border-quest-gold-dark/30 bg-quest-panel">
+              <button 
+                onClick={() => setSubjectModalTab('tasks')}
+                className={`flex-1 py-3 text-xs font-serif uppercase tracking-widest transition-all ${subjectModalTab === 'tasks' ? 'text-quest-gold border-b-2 border-quest-gold bg-quest-panel-light' : 'text-quest-text-muted hover:text-quest-gold'}`}
+              >
+                Tarefas
+              </button>
+              <button 
+                onClick={() => setSubjectModalTab('notes')}
+                className={`flex-1 py-3 text-xs font-serif uppercase tracking-widest transition-all ${subjectModalTab === 'notes' ? 'text-quest-gold border-b-2 border-quest-gold bg-quest-panel-light' : 'text-quest-text-muted hover:text-quest-gold'}`}
+              >
+                Anotações de Revisão
+              </button>
+            </div>
+
+            {subjectModalTab === 'tasks' ? (
+              <>
+                {subjectTasks[selectedSubject] && (
+                  <div className="px-4 pt-4 pb-2 border-b border-quest-gold-dark/20 bg-quest-panel">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-quest-text-muted uppercase tracking-widest font-serif">Progresso das Tarefas</span>
+                      <span className="text-xs text-quest-gold font-mono">
+                        {subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length} / {subjectTasks[selectedSubject].length}
+                      </span>
+                    </div>
+                    <ProgressBar progress={Math.round((subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length / subjectTasks[selectedSubject].length) * 100)} />
+                  </div>
+                )}
+                <div className="p-4 overflow-y-auto flex-1 space-y-2">
+                  {subjectTasks[selectedSubject] ? (
+                    subjectTasks[selectedSubject].map(task => {
+                      const isTaskCompleted = !!taskCompletions[`${selectedSubject}_${task.id}`];
+                      return (
+                        <motion.div 
+                          key={task.id}
+                          initial={false}
+                          animate={{ scale: isTaskCompleted ? 0.98 : 1 }}
+                          className={`flex items-start gap-3 p-3 border border-quest-gold-dark/20 rounded hover:bg-quest-panel-light transition-all ${isTaskCompleted ? 'opacity-50 bg-black/30' : 'bg-black/10'}`}
+                        >
+                          <motion.button 
+                            whileTap={{ scale: 0.8 }}
+                            className="mt-0.5 text-quest-gold-dark hover:text-quest-gold transition-colors"
+                            onClick={() => setSelectedTaskContent({ 
+                              title: task.title, 
+                              content: getTaskContent(selectedSubject, task.id),
+                              taskId: task.id,
+                              subject: selectedSubject
+                            })}
+                            title="Ver conteúdo da tarefa"
+                          >
+                            <Eye size={20} />
+                          </motion.button>
+                          <motion.div 
+                            whileTap={{ scale: 0.8 }}
+                            className="mt-0.5 text-quest-gold-dark cursor-pointer"
+                            onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
+                          >
+                            {isTaskCompleted ? <CheckSquare className="text-quest-red" size={20} /> : <Square size={20} />}
+                          </motion.div>
+                          <span 
+                            className={`text-sm cursor-pointer flex-1 ${isTaskCompleted ? 'line-through text-quest-text-muted' : 'text-quest-text'}`}
+                            onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
+                          >
+                            {task.title}
+                          </span>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-quest-text-muted italic text-center py-8">Nenhuma tarefa detalhada para esta matéria ainda.</p>
+                  )}
                 </div>
-                <ProgressBar progress={Math.round((subjectTasks[selectedSubject].filter(t => taskCompletions[`${selectedSubject}_${t.id}`]).length / subjectTasks[selectedSubject].length) * 100)} />
+              </>
+            ) : (
+              <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
+                {!isAddingNote ? (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-2 text-quest-gold font-serif text-sm uppercase tracking-widest">
+                        <Scroll size={18} />
+                        <span>Histórico de Revisões</span>
+                      </div>
+                      <button 
+                        onClick={() => setIsAddingNote(true)}
+                        className="text-xs font-serif text-quest-gold hover:text-white transition-colors flex items-center gap-1 border border-quest-gold/30 px-3 py-1 rounded-sm bg-quest-gold/5"
+                      >
+                        <Plus size={14} /> Nova Anotação
+                      </button>
+                    </div>
+
+                    <div className="space-y-4 flex-1">
+                      {subjectNotes[selectedSubject] && Array.isArray(subjectNotes[selectedSubject]) && subjectNotes[selectedSubject].length > 0 ? (
+                        subjectNotes[selectedSubject].map(note => (
+                          <div key={note.id} className="border-l-2 border-quest-gold/30 pl-4 py-1 group relative">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="text-[10px] text-quest-gold font-mono uppercase opacity-60">{note.date}</div>
+                              <button 
+                                onClick={() => deleteSubjectNote(selectedSubject, note.id)}
+                                className="opacity-0 group-hover:opacity-100 text-quest-red hover:text-red-400 transition-all p-1"
+                                title="Excluir anotação"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                            <div className="text-sm text-quest-text leading-relaxed whitespace-pre-wrap">{note.text}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                          <PenTool size={40} className="mb-4" />
+                          <p className="text-sm italic font-serif">Nenhuma revisão registrada ainda.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col h-full gap-4">
+                    <div className="flex items-center gap-2 text-quest-gold font-serif text-sm uppercase tracking-widest mb-2">
+                      <PenTool size={18} />
+                      <span>O que você revisou hoje?</span>
+                    </div>
+                    <textarea 
+                      autoFocus
+                      value={currentNoteText}
+                      onChange={(e) => setCurrentNoteText(e.target.value)}
+                      placeholder="Descreva brevemente os tópicos revisados..."
+                      className="flex-1 w-full bg-black/20 border border-quest-gold-dark/30 rounded p-4 text-quest-text focus:border-quest-gold outline-none resize-none font-sans text-sm min-h-[200px]"
+                    />
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setIsAddingNote(false)}
+                        className="flex-1 border border-quest-gold-dark/30 text-quest-text-muted py-3 rounded-sm hover:bg-white/5 transition-colors text-sm font-serif uppercase tracking-widest"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        onClick={() => saveSubjectNote(selectedSubject)}
+                        className="flex-[2] medieval-button flex items-center justify-center gap-2 py-3"
+                      >
+                        <Scroll size={18} />
+                        <span>Salvar Revisão</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            <div className="p-4 overflow-y-auto flex-1 space-y-2">
-              {subjectTasks[selectedSubject] ? (
-                subjectTasks[selectedSubject].map(task => {
-                  const isTaskCompleted = !!taskCompletions[`${selectedSubject}_${task.id}`];
-                  return (
-                    <motion.div 
-                      key={task.id}
-                      initial={false}
-                      animate={{ scale: isTaskCompleted ? 0.98 : 1 }}
-                      className={`flex items-start gap-3 p-3 border border-quest-gold-dark/20 rounded hover:bg-quest-panel-light transition-all ${isTaskCompleted ? 'opacity-50 bg-black/30' : 'bg-black/10'}`}
-                    >
-                      <motion.button 
-                        whileTap={{ scale: 0.8 }}
-                        className="mt-0.5 text-quest-gold-dark hover:text-quest-gold transition-colors"
-                        onClick={() => setSelectedTaskContent({ 
-                          title: task.title, 
-                          content: getTaskContent(selectedSubject, task.id),
-                          taskId: task.id,
-                          subject: selectedSubject
-                        })}
-                        title="Ver conteúdo da tarefa"
-                      >
-                        <Eye size={20} />
-                      </motion.button>
-                      <motion.div 
-                        whileTap={{ scale: 0.8 }}
-                        className="mt-0.5 text-quest-gold-dark cursor-pointer"
-                        onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
-                      >
-                        {isTaskCompleted ? <CheckSquare className="text-quest-red" size={20} /> : <Square size={20} />}
-                      </motion.div>
-                      <span 
-                        className={`text-sm cursor-pointer flex-1 ${isTaskCompleted ? 'line-through text-quest-text-muted' : 'text-quest-text'}`}
-                        onClick={() => toggleTask(selectedSubject, task.id, isTaskCompleted)}
-                      >
-                        {task.title}
-                      </span>
-                    </motion.div>
-                  );
-                })
-              ) : (
-                <p className="text-quest-text-muted italic text-center py-8">Nenhuma tarefa detalhada para esta matéria ainda.</p>
-              )}
-            </div>
           </motion.div>
         </motion.div>
       )}
