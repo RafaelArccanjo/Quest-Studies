@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
   CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
@@ -259,14 +259,11 @@ export default function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showRain, setShowRain] = useState(false);
 
-  const [studyCycle, setStudyCycle] = useState<string[]>(() => {
-    const saved = localStorage.getItem('studyCycleOrder');
-    return saved ? JSON.parse(saved) : DEFAULT_STUDY_CYCLE;
-  });
+  const isInitialSettingsLoadDone = useRef(false);
 
-  useEffect(() => {
-    localStorage.setItem('studyCycleOrder', JSON.stringify(studyCycle));
-  }, [studyCycle]);
+  const [studyCycle, setStudyCycle] = useState<string[]>(DEFAULT_STUDY_CYCLE);
+
+  // Remove localStorage useEffect for studyCycle
 
   const triggerDragonEncounter = () => {
     setShowRain(true);
@@ -323,32 +320,9 @@ export default function App() {
     }
   }, [selectedSubject]);
 
-  const [subjectNotes, setSubjectNotes] = useState<Record<string, {id: string, date: string, text: string}[]>>(() => {
-    const saved = localStorage.getItem('subjectNotes');
-    if (!saved) return {};
-    try {
-      const parsed = JSON.parse(saved);
-      const migrated: Record<string, {id: string, date: string, text: string}[]> = {};
-      Object.keys(parsed).forEach(key => {
-        if (Array.isArray(parsed[key])) {
-          migrated[key] = parsed[key];
-        } else if (typeof parsed[key] === 'string') {
-          migrated[key] = [{
-            id: 'legacy-' + Math.random().toString(36).substr(2, 9),
-            date: 'Antiga',
-            text: parsed[key]
-          }];
-        }
-      });
-      return migrated;
-    } catch (e) {
-      return {};
-    }
-  });
+  const [subjectNotes, setSubjectNotes] = useState<Record<string, {id: string, date: string, text: string}[]>>({});
 
-  useEffect(() => {
-    localStorage.setItem('subjectNotes', JSON.stringify(subjectNotes));
-  }, [subjectNotes]);
+  // Remove localStorage useEffect for subjectNotes
 
   const saveSubjectNote = (subject: string) => {
     if (!currentNoteText.trim()) return;
@@ -394,14 +368,9 @@ export default function App() {
   const [selectedCycleSubjects, setSelectedCycleSubjects] = useState<string[]>([]);
   const [toasts, setToasts] = useState<any[]>([]);
 
-  const [reviewSubjects, setReviewSubjects] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('reviewSubjects');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [reviewSubjects, setReviewSubjects] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    localStorage.setItem('reviewSubjects', JSON.stringify(reviewSubjects));
-  }, [reviewSubjects]);
+  // Remove localStorage useEffect for reviewSubjects
 
   const toggleReviewSubject = (subject: string) => {
     setReviewSubjects(prev => ({
@@ -410,6 +379,36 @@ export default function App() {
     }));
     addToast(reviewSubjects[subject] ? `📚 ${subject} removida da revisão.` : `🔄 ${subject} marcada para revisão!`, "success");
   };
+
+  // Save settings to Supabase when they change
+  useEffect(() => {
+    if (!user || !isInitialSettingsLoadDone.current) return;
+    
+    const timer = setTimeout(async () => {
+      try {
+        const { error } = await supabase.from('user_settings').upsert({
+          user_id: user.id,
+          study_cycle: studyCycle,
+          review_subjects: reviewSubjects,
+          subject_notes: subjectNotes,
+          completed_cycles: completedCycles,
+          studied_minutes: studiedMinutes,
+          double_count: doubleCount,
+          cycle_history: cycleHistory,
+          study_min: studyMin,
+          break_min: breakMin,
+          updated_at: new Date().toISOString()
+        });
+        if (error) throw error;
+        console.log("Configurações salvas com sucesso no Supabase.");
+      } catch (err: any) {
+        console.error("Erro ao salvar configurações:", err);
+        addToast("⚠️ Erro ao salvar progresso no banco de dados. Verifique sua conexão.", "warning");
+      }
+    }, 1500); // Debounce saves by 1.5 seconds to be safer
+
+    return () => clearTimeout(timer);
+  }, [studyCycle, reviewSubjects, subjectNotes, completedCycles, studiedMinutes, doubleCount, cycleHistory, studyMin, breakMin, user]);
 
   const weekDates = useMemo(() => {
     const today = new Date();
@@ -848,6 +847,205 @@ export default function App() {
       })
       .subscribe();
 
+    // Listen to User Settings
+    const fetchUserSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error("Erro ao buscar configurações:", error);
+          return;
+        }
+        
+        if (data) {
+          if (data.study_cycle && Array.isArray(data.study_cycle) && data.study_cycle.length > 0) {
+            setStudyCycle(data.study_cycle);
+          }
+          if (data.review_subjects) {
+            setReviewSubjects(data.review_subjects);
+          }
+          if (data.subject_notes) {
+            setSubjectNotes(data.subject_notes);
+          }
+          if (data.completed_cycles !== undefined) setCompletedCycles(data.completed_cycles);
+          if (data.studied_minutes !== undefined) setStudiedMinutes(data.studied_minutes);
+          if (data.double_count !== undefined) setDoubleCount(data.double_count);
+          if (data.cycle_history) setCycleHistory(data.cycle_history);
+          if (data.study_min) setStudyMin(data.study_min);
+          if (data.break_min) setBreakMin(data.break_min);
+
+          // Check if there's still something in localStorage that wasn't migrated
+          const localStudyCycle = localStorage.getItem('studyCycleOrder');
+          const localReviewSubjects = localStorage.getItem('reviewSubjects');
+          const localSubjectNotes = localStorage.getItem('subjectNotes');
+          const localCompletedCycles = localStorage.getItem('completedCycles');
+          const localStudiedMinutes = localStorage.getItem('studiedMinutes');
+          const localDoubleCount = localStorage.getItem('doubleCount');
+          const localCycleHistory = localStorage.getItem('cycleHistory');
+          const localStudyMin = localStorage.getItem('studyMin');
+          const localBreakMin = localStorage.getItem('breakMin');
+          const localCompletions = localStorage.getItem('completions');
+          const localTaskCompletions = localStorage.getItem('taskCompletions');
+
+          if (localStudyCycle || localReviewSubjects || localSubjectNotes || localCompletedCycles || localStudiedMinutes || localDoubleCount || localCycleHistory || localStudyMin || localBreakMin || localCompletions || localTaskCompletions) {
+            console.log("Detectado dados residuais no localStorage. Iniciando migração complementar...");
+            // If data exists in Supabase but we still have local data, we merge or prioritize local if Supabase is "empty"
+            const isSupabaseEmpty = !data.study_cycle || data.study_cycle.length === 0 || data.completed_cycles === 0;
+            
+            if (isSupabaseEmpty) {
+              // Re-run migration logic if Supabase was just initialized with defaults
+              // (This part is handled by the same logic as below, just making it explicit)
+            }
+          }
+        }
+        
+        if (!data || (localStorage.getItem('studyCycleOrder') || localStorage.getItem('reviewSubjects') || localStorage.getItem('subjectNotes') || localStorage.getItem('completedCycles') || localStorage.getItem('studiedMinutes') || localStorage.getItem('doubleCount') || localStorage.getItem('cycleHistory') || localStorage.getItem('studyMin') || localStorage.getItem('breakMin') || localStorage.getItem('completions') || localStorage.getItem('taskCompletions'))) {
+          // Migration from localStorage if first time or if data was missed
+          const localStudyCycle = localStorage.getItem('studyCycleOrder');
+          const localReviewSubjects = localStorage.getItem('reviewSubjects');
+          const localSubjectNotes = localStorage.getItem('subjectNotes');
+          const localCompletedCycles = localStorage.getItem('completedCycles');
+          const localStudiedMinutes = localStorage.getItem('studiedMinutes');
+          const localDoubleCount = localStorage.getItem('doubleCount');
+          const localCycleHistory = localStorage.getItem('cycleHistory');
+          const localStudyMin = localStorage.getItem('studyMin');
+          const localBreakMin = localStorage.getItem('breakMin');
+          const localCompletions = localStorage.getItem('completions');
+          const localTaskCompletions = localStorage.getItem('taskCompletions');
+          
+          if (localStudyCycle || localReviewSubjects || localSubjectNotes || localCompletedCycles || localStudiedMinutes || localDoubleCount || localCycleHistory || localStudyMin || localBreakMin || localCompletions || localTaskCompletions) {
+            const settingsToSave: any = {
+              user_id: user.id,
+              study_cycle: localStudyCycle ? JSON.parse(localStudyCycle) : (data?.study_cycle || studyCycle),
+              review_subjects: localReviewSubjects ? JSON.parse(localReviewSubjects) : (data?.review_subjects || reviewSubjects),
+              subject_notes: localSubjectNotes ? JSON.parse(localSubjectNotes) : (data?.subject_notes || subjectNotes),
+              completed_cycles: localCompletedCycles ? parseInt(localCompletedCycles) : (data?.completed_cycles || completedCycles),
+              studied_minutes: localStudiedMinutes ? parseInt(localStudiedMinutes) : (data?.studied_minutes || studiedMinutes),
+              double_count: localDoubleCount ? parseInt(localDoubleCount) : (data?.double_count || doubleCount),
+              cycle_history: localCycleHistory ? JSON.parse(localCycleHistory) : (data?.cycle_history || cycleHistory),
+              study_min: localStudyMin ? parseInt(localStudyMin) : (data?.study_min || studyMin),
+              break_min: localBreakMin ? parseInt(localBreakMin) : (data?.break_min || breakMin)
+            };
+            
+            const { error: upsertError } = await supabase.from('user_settings').upsert(settingsToSave);
+            
+            if (!upsertError) {
+              let migrationSuccess = true;
+
+              // Migrate completions if they exist
+              if (localCompletions) {
+                try {
+                  const parsedCompletions = JSON.parse(localCompletions);
+                  const completionsToInsert = Object.keys(parsedCompletions).map(key => {
+                    const [date, subject] = key.split('_');
+                    const docId = `${user.id}_${date}_${encodeURIComponent(subject)}`;
+                    return { id: docId, user_id: user.id, date, subject };
+                  });
+                  if (completionsToInsert.length > 0) {
+                    const { error } = await supabase.from('completions').upsert(completionsToInsert);
+                    if (error) {
+                      console.error("Erro ao migrar missões:", error);
+                      migrationSuccess = false;
+                    }
+                  }
+                } catch (e) { 
+                  console.error("Erro ao processar missões locais:", e);
+                  migrationSuccess = false;
+                }
+              }
+
+              // Migrate task completions if they exist
+              if (localTaskCompletions) {
+                try {
+                  const parsedTaskCompletions = JSON.parse(localTaskCompletions);
+                  const tasksToInsert = Object.keys(parsedTaskCompletions).map(key => {
+                    const [subject, task_id] = key.split('_');
+                    const docId = `${user.id}_${encodeURIComponent(subject)}_${task_id}`;
+                    return { id: docId, user_id: user.id, subject, task_id };
+                  });
+                  if (tasksToInsert.length > 0) {
+                    const { error } = await supabase.from('task_completions').upsert(tasksToInsert);
+                    if (error) {
+                      console.error("Erro ao migrar tarefas:", error);
+                      migrationSuccess = false;
+                    }
+                  }
+                } catch (e) { 
+                  console.error("Erro ao processar tarefas locais:", e);
+                  migrationSuccess = false;
+                }
+              }
+
+              if (migrationSuccess) {
+                if (localStudyCycle) setStudyCycle(JSON.parse(localStudyCycle));
+                if (localReviewSubjects) setReviewSubjects(JSON.parse(localReviewSubjects));
+                if (localSubjectNotes) setSubjectNotes(JSON.parse(localSubjectNotes));
+                if (localCompletedCycles) setCompletedCycles(parseInt(localCompletedCycles));
+                if (localStudiedMinutes) setStudiedMinutes(parseInt(localStudiedMinutes));
+                if (localDoubleCount) setDoubleCount(parseInt(localDoubleCount));
+                if (localCycleHistory) setCycleHistory(JSON.parse(localCycleHistory));
+                if (localStudyMin) setStudyMin(parseInt(localStudyMin));
+                if (localBreakMin) setBreakMin(parseInt(localBreakMin));
+                
+                localStorage.removeItem('studyCycleOrder');
+                localStorage.removeItem('reviewSubjects');
+                localStorage.removeItem('subjectNotes');
+                localStorage.removeItem('completedCycles');
+                localStorage.removeItem('studiedMinutes');
+                localStorage.removeItem('doubleCount');
+                localStorage.removeItem('cycleHistory');
+                localStorage.removeItem('studyMin');
+                localStorage.removeItem('breakMin');
+                localStorage.removeItem('completions');
+                localStorage.removeItem('taskCompletions');
+                console.log("Migração do localStorage para Supabase concluída com sucesso.");
+              } else {
+                addToast("⚠️ Alguns dados locais não puderam ser migrados. Tente atualizar a página.", "warning");
+              }
+            } else {
+              console.error("Erro ao migrar dados para o Supabase:", upsertError);
+              addToast("⚠️ Erro ao migrar dados para o banco de dados.", "warning");
+            }
+          } else if (!data) {
+            // No local data and no Supabase data, just create default in DB
+            await supabase.from('user_settings').insert({
+              user_id: user.id,
+              study_cycle: studyCycle,
+              review_subjects: reviewSubjects,
+              subject_notes: subjectNotes,
+              completed_cycles: completedCycles,
+              studied_minutes: studiedMinutes,
+              double_count: doubleCount,
+              cycle_history: cycleHistory,
+              study_min: studyMin,
+              break_min: breakMin
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar configurações:", err);
+      } finally {
+        isInitialSettingsLoadDone.current = true;
+      }
+    };
+
+    fetchUserSettings();
+
+    const userSettingsSubscription = supabase
+      .channel('user_settings_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, (payload) => {
+        // Only update if it's not our own change? 
+        // Actually, simpler to just refetch if we're not the ones who changed it.
+        // But for settings, we usually want to avoid overwriting local state if we're editing.
+        // For now, let's just fetch to keep it simple.
+        fetchUserSettings();
+      })
+      .subscribe();
+
     return () => {
       completionsSubscription.unsubscribe();
       taskCompletionsSubscription.unsubscribe();
@@ -855,6 +1053,7 @@ export default function App() {
       detailedSimuladosSubscription.unsubscribe();
       userContestsSubscription.unsubscribe();
       redacoesSubscription.unsubscribe();
+      userSettingsSubscription.unsubscribe();
     };
   }, [user]);
 
@@ -976,6 +1175,7 @@ export default function App() {
         }).eq('id', editingRedacao.id);
         if (error) throw error;
         setEditingRedacao(null);
+        addToast("📜 Redação atualizada!", "success");
       } else {
         const { error } = await supabase.from('redacoes').insert({
           user_id: user.id,
@@ -984,11 +1184,13 @@ export default function App() {
           date: new Date().toISOString().split('T')[0]
         });
         if (error) throw error;
+        addToast("📜 Redação registrada!", "success");
       }
       
       setNewRedacao({ theme: '', score: 0 });
     } catch (err: any) {
       console.error("Erro ao salvar redação: " + err.message);
+      addToast("⚠️ Erro ao salvar redação.", "warning");
     }
   };
 
@@ -1054,9 +1256,11 @@ export default function App() {
       }
     } catch (err: any) {
       if (err.message?.includes('schema cache')) {
-        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados.");
+        addToast("⚠️ Tabela 'completions' não encontrada. Verifique o banco de dados.", "warning");
       } else {
         console.error("Erro ao atualizar missão: " + err.message);
+        addToast("⚠️ Erro ao salvar missão. Tente novamente.", "warning");
       }
     }
   };
@@ -1090,9 +1294,11 @@ export default function App() {
       }
     } catch (err: any) {
       if (err.message?.includes('schema cache')) {
-        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+        console.error("ERRO CRÍTICO: A tabela 'completions' não foi encontrada no banco de dados.");
+        addToast("⚠️ Tabela 'completions' não encontrada.", "warning");
       } else {
         console.error("Erro ao atualizar flashcards: " + err.message);
+        addToast("⚠️ Erro ao salvar flashcards.", "warning");
       }
     }
   };
@@ -1124,9 +1330,11 @@ export default function App() {
       }
     } catch (err: any) {
       if (err.message?.includes('schema cache')) {
-        console.error("ERRO CRÍTICO: A tabela 'task_completions' não foi encontrada no banco de dados. Por favor, execute o script SQL de migração no seu painel do Supabase.");
+        console.error("ERRO CRÍTICO: A tabela 'task_completions' não foi encontrada no banco de dados.");
+        addToast("⚠️ Tabela 'task_completions' não encontrada.", "warning");
       } else {
         console.error("Erro ao atualizar tarefa: " + err.message);
+        addToast("⚠️ Erro ao salvar tarefa.", "warning");
       }
     }
   };
@@ -1135,16 +1343,19 @@ export default function App() {
     e.preventDefault();
     if (!newSimulado.title.trim() || !user) return;
     try {
-      await supabase.from('simulados').insert({
+      const { error } = await supabase.from('simulados').insert({
         user_id: user.id,
         title: newSimulado.title,
         score: Number(newSimulado.score),
         target_score: Number(newSimulado.targetScore),
         date: new Date().toISOString().split('T')[0]
       });
+      if (error) throw error;
       setNewSimulado({ title: '', score: 0, targetScore: 80 });
+      addToast("⚔️ Simulado registrado!", "success");
     } catch (err: any) {
       console.error("Erro ao registrar simulado: " + err.message);
+      addToast("⚠️ Erro ao salvar simulado.", "warning");
     }
   };
 
@@ -1197,7 +1408,7 @@ export default function App() {
     if (!newContest.name.trim() || !user) return;
     
     try {
-      await supabase.from('user_contests').insert({
+      const { error } = await supabase.from('user_contests').insert({
         user_id: user.id,
         name: newContest.name,
         cutoff_score: Number(newContest.cutoffScore),
@@ -1208,10 +1419,13 @@ export default function App() {
           weight: Number(s.weight)
         }))
       });
+      if (error) throw error;
       setNewContest({ name: '', cutoffScore: 80, warningScore: 72, subjects: [{ name: '', questions: 10, weight: 1 }] });
       setSimuladoModalTab('registrar');
+      addToast("🏆 Concurso registrado!", "success");
     } catch (err: any) {
       console.error("Erro ao registrar concurso: " + err.message);
+      addToast("⚠️ Erro ao salvar concurso.", "warning");
     }
   };
 
