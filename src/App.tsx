@@ -24,9 +24,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 // --- REUSABLE COMPONENTS ---
 const DEFAULT_STUDY_CYCLE = [
+  'Direito Administrativo',
   'Língua Portuguesa e Redação Oficial',
   'Direitos Humanos e Tratamento Penal',
-  'Direito Administrativo',
   'Direito Penal',
   'Administração Pública',
   'Direito Constitucional',
@@ -39,9 +39,9 @@ const DEFAULT_STUDY_CYCLE = [
 ];
 
 const battleTable = [
+  { subject: 'Direito Administrativo', conquest: '0/0', progress: 0 },
   { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/0', progress: 0 },
   { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/0', progress: 0 },
-  { subject: 'Direito Administrativo', conquest: '0/0', progress: 0 },
   { subject: 'Direito Penal', conquest: '0/0', progress: 0 },
   { subject: 'Administração Pública', conquest: '0/0', progress: 0 },
   { subject: 'Direito Constitucional', conquest: '0/0', progress: 0 },
