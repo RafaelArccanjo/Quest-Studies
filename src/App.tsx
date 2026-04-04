@@ -295,6 +295,9 @@ export default function App() {
   
   // Data State
   const [completions, setCompletions] = useState<Record<string, boolean>>({});
+  const [rawCompletions, setRawCompletions] = useState<any[]>([]);
+  const [lastCycleResetAt, setLastCycleResetAt] = useState<string | null>(null);
+  const [lastBattleResetAt, setLastBattleResetAt] = useState<string | null>(null);
   const [taskCompletions, setTaskCompletions] = useState<Record<string, boolean>>({});
   const [simulados, setSimulados] = useState<any[]>([]);
   const [detailedSimulados, setDetailedSimulados] = useState<any[]>([]);
@@ -397,6 +400,8 @@ export default function App() {
           cycle_history: cycleHistory,
           study_min: studyMin,
           break_min: breakMin,
+          last_cycle_reset_at: lastCycleResetAt,
+          last_battle_reset_at: lastBattleResetAt,
           updated_at: new Date().toISOString()
         });
         if (error) throw error;
@@ -660,6 +665,7 @@ export default function App() {
       }
       
       if (data) {
+        setRawCompletions(data);
         const newCompletions: Record<string, boolean> = {};
         data.forEach(item => {
           newCompletions[`${item.date}_${item.subject}`] = true;
@@ -877,6 +883,8 @@ export default function App() {
           if (data.cycle_history) setCycleHistory(data.cycle_history);
           if (data.study_min) setStudyMin(data.study_min);
           if (data.break_min) setBreakMin(data.break_min);
+          if (data.last_cycle_reset_at) setLastCycleResetAt(data.last_cycle_reset_at);
+          if (data.last_battle_reset_at) setLastBattleResetAt(data.last_battle_reset_at);
 
           // Check if there's still something in localStorage that wasn't migrated
           const localStudyCycle = localStorage.getItem('studyCycleOrder');
@@ -1093,28 +1101,40 @@ export default function App() {
     ];
   }, [currentWeekLabel, currentWeekCycles, totalWeeklyCycles, currentWeekProgress, currentWeekFlashcards]);
 
+  const activeCycleCompletions = useMemo(() => {
+    return rawCompletions.filter(c => 
+      !lastCycleResetAt || new Date(c.created_at) > new Date(lastCycleResetAt)
+    );
+  }, [rawCompletions, lastCycleResetAt]);
+
+  const activeBattleCompletions = useMemo(() => {
+    return rawCompletions.filter(c => 
+      !lastBattleResetAt || new Date(c.created_at) > new Date(lastBattleResetAt)
+    );
+  }, [rawCompletions, lastBattleResetAt]);
+
   const todaysMissions = useMemo(() => {
-    // Find the first N subjects not completed today
+    // Find subjects not completed in the current cycle
     const missions: { subject: string; time: string; completed: boolean }[] = [];
     let count = 0;
     
     for (const subject of studyCycle) {
       if (count >= dailyMissionsLimit) break;
-      const completedToday = !!completions[`${todayDateStr}_${subject}`];
+      const isCompletedInCycle = activeCycleCompletions.some(c => c.subject === subject);
       const isLongTermCompleted = completedSubjects.includes(subject);
       
       if (!isLongTermCompleted) {
         missions.push({
           subject,
           time: '1h',
-          completed: completedToday
+          completed: isCompletedInCycle
         });
-        if (!completedToday) count++;
+        if (!isCompletedInCycle) count++;
       }
     }
     
     return missions;
-  }, [completions, todayDateStr, completedSubjects, studyCycle, dailyMissionsLimit]);
+  }, [activeCycleCompletions, completedSubjects, studyCycle, dailyMissionsLimit]);
 
   const completedMissions = currentWeekCycles;
   const totalMissions = totalWeeklyCycles;
@@ -1125,17 +1145,14 @@ export default function App() {
   // Calculate Battle Table
   const battleStats = useMemo(() => {
     const stats: Record<string, { total: number, completed: number }> = {};
+    
     studyCycle.forEach(subject => {
       if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
-      stats[subject].total = 2; // Goal of 2 completions per week
-      weekDates.forEach(dateStr => {
-        if (completions[`${dateStr}_${subject}`]) {
-          stats[subject].completed += 1;
-        }
-      });
+      stats[subject].total = 2; // Goal of 2 completions per cycle
+      stats[subject].completed = activeBattleCompletions.filter(c => c.subject === subject).length;
     });
     return stats;
-  }, [weekDates, completions, studyCycle]);
+  }, [activeBattleCompletions, studyCycle]);
 
   const dynamicBattleTable = useMemo(() => {
     return studyCycle.map(subject => {
@@ -1148,6 +1165,46 @@ export default function App() {
       };
     });
   }, [battleStats, studyCycle]);
+
+  // Automatic Reset Logic
+  useEffect(() => {
+    if (!isInitialSettingsLoadDone.current || rawCompletions.length === 0) return;
+
+    // 1. Check Cycle Reset (All subjects in studyCycle have at least 1 completion since lastCycleResetAt)
+    // Only count subjects that are NOT marked as "long term completed" (concluídas)
+    const activeSubjects = studyCycle.filter(s => !completedSubjects.includes(s));
+    
+    if (activeSubjects.length > 0) {
+      const allCycleSubjectsCompleted = activeSubjects.every(subject => 
+        activeCycleCompletions.some(c => c.subject === subject)
+      );
+
+      if (allCycleSubjectsCompleted) {
+        // Small delay to let the user see the last checkmark
+        const timer = setTimeout(() => {
+          setLastCycleResetAt(new Date().toISOString());
+          addToast("🔥 Ciclo Completo! Reiniciando jornada...", "success");
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+
+    // 2. Check Battle Reset (All subjects in studyCycle have at least 2 completions since lastBattleResetAt)
+    if (studyCycle.length > 0) {
+      const allBattleSubjectsReachedGoal = studyCycle.every(subject => {
+          const count = activeBattleCompletions.filter(c => c.subject === subject).length;
+          return count >= 2;
+      });
+
+      if (allBattleSubjectsReachedGoal) {
+        const timer = setTimeout(() => {
+          setLastBattleResetAt(new Date().toISOString());
+          addToast("⚔️ Tabela de Batalha Resetada! Todos os objetivos 2/2 alcançados!", "success");
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [activeCycleCompletions, activeBattleCompletions, studyCycle, completedSubjects, lastCycleResetAt, lastBattleResetAt]);
 
   const completedSubjectsData = useMemo(() => {
     return completedSubjects.map(subject => {
@@ -1214,22 +1271,36 @@ export default function App() {
   const toggleMission = async (subject: string, isCompleted: boolean) => {
     if (!user) return;
     const dateStr = new Date().toISOString().split('T')[0];
-    const docId = `${user.id}_${dateStr}_${encodeURIComponent(subject)}`;
+    
+    // Find if there's a completion TODAY
+    const completedToday = rawCompletions.find(c => c.subject === subject && c.date === dateStr);
+    
+    // If we are unchecking, and it wasn't completed today, find the latest in the cycle
+    let targetDocId = completedToday?.id || `${user.id}_${dateStr}_${encodeURIComponent(subject)}`;
+    
+    if (isCompleted && !completedToday) {
+       const latestInCycle = [...activeCycleCompletions]
+         .filter(c => c.subject === subject)
+         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+       if (latestInCycle) targetDocId = latestInCycle.id;
+    }
     
     try {
       if (isCompleted) {
         playClickSound();
-        const { error } = await supabase.from('completions').delete().eq('id', docId);
+        const { error } = await supabase.from('completions').delete().eq('id', targetDocId);
         if (error) throw error;
-        // Optimistic update or manual refetch
+        
+        // Optimistic update
+        setRawCompletions(prev => prev.filter(c => c.id !== targetDocId));
         setCompletions(prev => {
           const next = { ...prev };
-          delete next[`${dateStr}_${subject}`];
+          if (completedToday) delete next[`${dateStr}_${subject}`];
           return next;
         });
       } else {
         const { error } = await supabase.from('completions').upsert({
-          id: docId,
+          id: `${user.id}_${dateStr}_${encodeURIComponent(subject)}`,
           user_id: user.id,
           date: dateStr,
           subject: subject
@@ -1239,16 +1310,17 @@ export default function App() {
         // Optimistic update
         setCompletions(prev => ({ ...prev, [`${dateStr}_${subject}`]: true }));
         
-        // Determine if this is the last mission of the day being completed
-        const currentTodaysMissions = studyCycle.map(subject => ({
-          subject,
-          completed: !!completions[`${dateStr}_${subject}`] || subject === subject
-        })).slice(0, 3);
+        // Determine if this is the last mission of the cycle being completed
+        const activeSubjects = studyCycle.filter(s => !completedSubjects.includes(s));
+        const currentCycleMissions = activeSubjects.map(s => ({
+          subject: s,
+          completed: activeCycleCompletions.some(c => c.subject === s) || s === subject
+        })).slice(0, dailyMissionsLimit);
         
-        const otherMissions = currentTodaysMissions.filter(m => m.subject !== subject);
+        const otherMissions = currentCycleMissions.filter(m => m.subject !== subject);
         const allOthersCompleted = otherMissions.every(m => m.completed);
         
-        if (allOthersCompleted && currentTodaysMissions.length > 0) {
+        if (allOthersCompleted && currentCycleMissions.length > 0) {
           triggerDragonEncounter();
         } else {
           triggerMedievalEffects();
@@ -2104,7 +2176,7 @@ export default function App() {
             </div>
             <Reorder.Group axis="x" values={studyCycle} onReorder={setStudyCycle} className="flex flex-wrap justify-center gap-6 relative">
               {studyCycle.map((subject, idx) => {
-                const isCheckedToday = !!completions[`${todayDateStr}_${subject}`];
+                const isCheckedInCycle = activeCycleCompletions.some(c => c.subject === subject);
                 const isLongTermCompleted = completedSubjects.includes(subject);
                 const isNextToStudy = todaysMissions.some(m => m.subject === subject && !m.completed);
                 const isReview = !!reviewSubjects[subject];
@@ -2120,20 +2192,20 @@ export default function App() {
                     <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative ${
                       isNextToStudy 
                         ? 'bg-quest-gold/20 border-quest-gold shadow-[0_0_15px_rgba(184,155,94,0.6)] scale-110' 
-                        : isCheckedToday 
+                        : isCheckedInCycle 
                           ? 'bg-quest-red/10 border-quest-red/50' 
                           : isNew
                             ? 'bg-yellow-400/20 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] scale-105'
                             : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
                     }`}>
-                      {isCheckedToday ? (
+                      {isCheckedInCycle ? (
                         <CheckCircle2 className="text-quest-red" size={32} />
                       ) : (
                         <span className={`font-serif text-xl ${isNew ? 'text-yellow-400 font-bold' : 'text-quest-gold'}`}>{idx + 1}</span>
                       )}
 
                       {/* Símbolos de Status */}
-                      {!isCheckedToday && !isLongTermCompleted && (
+                      {!isCheckedInCycle && !isLongTermCompleted && (
                         <div className="absolute -top-2 -right-2 flex flex-col gap-1">
                           {isNew && (
                             <div className="bg-yellow-400 rounded-full p-1.5 shadow-[0_0_8px_rgba(250,204,21,0.8)] border-2 border-black/20 animate-pulse" title="Matéria Nova">
@@ -2157,8 +2229,8 @@ export default function App() {
                       <p className={`text-xs font-serif tracking-wider uppercase ${isNextToStudy ? 'text-quest-gold font-bold' : 'text-quest-text'}`}>
                         {subject}
                       </p>
-                      {isCheckedToday && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído Hoje</span>}
-                      {!isCheckedToday && !isLongTermCompleted && (
+                      {isCheckedInCycle && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído</span>}
+                      {!isCheckedInCycle && !isLongTermCompleted && (
                         <div className="flex justify-center gap-1 mt-1">
                           {isNew && <span className="text-[8px] text-yellow-400 font-bold uppercase px-1 bg-yellow-400/20 rounded-sm border border-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.4)]">Nova</span>}
                           {isReview && <span className="text-[8px] text-quest-gold font-bold uppercase px-1 bg-quest-red/20 rounded-sm border border-quest-red/30">Revisão</span>}
