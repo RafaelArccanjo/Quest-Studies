@@ -292,6 +292,13 @@ export default function App() {
     audio.volume = 0.3;
     audio.play().catch(e => console.log("Audio play failed", e));
   };
+
+  const playTimerEndSound = () => {
+    // Medieval horn or bell sound
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3');
+    audio.volume = 0.6;
+    audio.play().catch(e => console.log("Audio play failed", e));
+  };
   
   // Data State
   const [completions, setCompletions] = useState<Record<string, boolean>>({});
@@ -389,7 +396,7 @@ export default function App() {
     
     const timer = setTimeout(async () => {
       try {
-        const { error } = await supabase.from('user_settings').upsert({
+        const settingsPayload: any = {
           user_id: user.id,
           study_cycle: studyCycle,
           review_subjects: reviewSubjects,
@@ -400,11 +407,27 @@ export default function App() {
           cycle_history: cycleHistory,
           study_min: studyMin,
           break_min: breakMin,
-          last_cycle_reset_at: lastCycleResetAt,
-          last_battle_reset_at: lastBattleResetAt,
           updated_at: new Date().toISOString()
-        });
-        if (error) throw error;
+        };
+
+        // Only add these if they are not null to avoid issues with missing columns
+        // or try to upsert and catch specific column errors
+        if (lastCycleResetAt) settingsPayload.last_cycle_reset_at = lastCycleResetAt;
+        if (lastBattleResetAt) settingsPayload.last_battle_reset_at = lastBattleResetAt;
+
+        const { error } = await supabase.from('user_settings').upsert(settingsPayload);
+        
+        if (error) {
+          // If error is because of missing columns, try without them
+          if (error.message?.includes('column') && (error.message?.includes('last_cycle_reset_at') || error.message?.includes('last_battle_reset_at'))) {
+            console.warn("Colunas de reset não encontradas no banco. Salvando sem elas.");
+            const { last_cycle_reset_at, last_battle_reset_at, ...fallbackPayload } = settingsPayload;
+            const { error: retryError } = await supabase.from('user_settings').upsert(fallbackPayload);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
         console.log("Configurações salvas com sucesso no Supabase.");
       } catch (err: any) {
         console.error("Erro ao salvar configurações:", err);
@@ -413,7 +436,7 @@ export default function App() {
     }, 1500); // Debounce saves by 1.5 seconds to be safer
 
     return () => clearTimeout(timer);
-  }, [studyCycle, reviewSubjects, subjectNotes, completedCycles, studiedMinutes, doubleCount, cycleHistory, studyMin, breakMin, user]);
+  }, [studyCycle, reviewSubjects, subjectNotes, completedCycles, studiedMinutes, doubleCount, cycleHistory, studyMin, breakMin, lastCycleResetAt, lastBattleResetAt, user]);
 
   const weekDates = useMemo(() => {
     const today = new Date();
@@ -557,6 +580,7 @@ export default function App() {
         setCycleTimeLeft(prev => prev - 1);
       }, 1000);
     } else if (isCycleRunning && cycleTimeLeft === 0) {
+      playTimerEndSound();
       if (cyclePhase === 'study') {
         startBreakPhase();
       } else if (cyclePhase === 'break') {
@@ -564,6 +588,18 @@ export default function App() {
       }
     }
     return () => clearInterval(timer);
+  }, [isCycleRunning, cycleTimeLeft, cyclePhase]);
+
+  useEffect(() => {
+    if (isCycleRunning && cycleTimeLeft > 0) {
+      const minutes = Math.floor(cycleTimeLeft / 60);
+      const seconds = cycleTimeLeft % 60;
+      const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      const phaseStr = cyclePhase === 'study' ? '⚔️ Estudo' : '☕ Pausa';
+      document.title = `${timeStr} - ${phaseStr} | Quest do Concurseiro`;
+    } else {
+      document.title = 'Quest do Concurseiro';
+    }
   }, [isCycleRunning, cycleTimeLeft, cyclePhase]);
   const [newSimulado, setNewSimulado] = useState({ title: '', score: 0, targetScore: 80 });
   const [newDetailedSimulado, setNewDetailedSimulado] = useState({ title: '', contestId: 'bb', subjectScores: {} as Record<string, number> });
