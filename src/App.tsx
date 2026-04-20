@@ -267,6 +267,7 @@ export default function App() {
 
   const triggerDragonEncounter = () => {
     setShowRain(true);
+    setLastCycleResetAt(new Date().toISOString());
     
     // Quick, low-volume metal clink
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
@@ -410,10 +411,15 @@ export default function App() {
           updated_at: new Date().toISOString()
         };
 
-        // Only add these if they are not null to avoid issues with missing columns
-        // or try to upsert and catch specific column errors
-        if (lastCycleResetAt) settingsPayload.last_cycle_reset_at = lastCycleResetAt;
-        if (lastBattleResetAt) settingsPayload.last_battle_reset_at = lastBattleResetAt;
+        // Also save to localStorage as a fallback in case DB migration wasn't run
+        if (lastCycleResetAt) {
+          settingsPayload.last_cycle_reset_at = lastCycleResetAt;
+          localStorage.setItem('fb_lastCycleReset', lastCycleResetAt);
+        }
+        if (lastBattleResetAt) {
+          settingsPayload.last_battle_reset_at = lastBattleResetAt;
+          localStorage.setItem('fb_lastBattleReset', lastBattleResetAt);
+        }
 
         const { error } = await supabase.from('user_settings').upsert(settingsPayload);
         
@@ -919,8 +925,27 @@ export default function App() {
           if (data.cycle_history) setCycleHistory(data.cycle_history);
           if (data.study_min) setStudyMin(data.study_min);
           if (data.break_min) setBreakMin(data.break_min);
-          if (data.last_cycle_reset_at) setLastCycleResetAt(data.last_cycle_reset_at);
-          if (data.last_battle_reset_at) setLastBattleResetAt(data.last_battle_reset_at);
+          // Reset Timestamps with localStorage fallback if columns are missing
+          const storedLastCycleReset = localStorage.getItem('fb_lastCycleReset');
+          const storedLastBattleReset = localStorage.getItem('fb_lastBattleReset');
+
+          if (data.last_cycle_reset_at) {
+            setLastCycleResetAt(data.last_cycle_reset_at);
+          } else if (storedLastCycleReset) {
+            setLastCycleResetAt(storedLastCycleReset);
+          } else {
+            // Set a very old date instead of null to avoid "Reset Loops"
+            setLastCycleResetAt('2000-01-01T00:00:00Z');
+          }
+
+          if (data.last_battle_reset_at) {
+            setLastBattleResetAt(data.last_battle_reset_at);
+          } else if (storedLastBattleReset) {
+            setLastBattleResetAt(storedLastBattleReset);
+          } else {
+            // Set a very old date instead of null to avoid "Reset Loops"
+            setLastBattleResetAt('2000-01-01T00:00:00Z');
+          }
 
           // Check if there's still something in localStorage that wasn't migrated
           const localStudyCycle = localStorage.getItem('studyCycleOrder');
@@ -1138,15 +1163,21 @@ export default function App() {
   }, [currentWeekLabel, currentWeekCycles, totalWeeklyCycles, currentWeekProgress, currentWeekFlashcards]);
 
   const activeCycleCompletions = useMemo(() => {
-    return rawCompletions.filter(c => 
-      !lastCycleResetAt || new Date(c.created_at) > new Date(lastCycleResetAt)
-    );
+    return rawCompletions.filter(c => {
+      // Fallback for missing created_at: use the 'date' field
+      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
+      if (!lastCycleResetAt || lastCycleResetAt === '2000-01-01T00:00:00Z') return true;
+      return cDate.getTime() > new Date(lastCycleResetAt).getTime();
+    });
   }, [rawCompletions, lastCycleResetAt]);
 
   const activeBattleCompletions = useMemo(() => {
-    return rawCompletions.filter(c => 
-      !lastBattleResetAt || new Date(c.created_at) > new Date(lastBattleResetAt)
-    );
+    return rawCompletions.filter(c => {
+      // Fallback for missing created_at: use the 'date' field
+      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
+      if (!lastBattleResetAt || lastBattleResetAt === '2000-01-01T00:00:00Z') return true;
+      return cDate.getTime() > new Date(lastBattleResetAt).getTime();
+    });
   }, [rawCompletions, lastBattleResetAt]);
 
   const todaysMissions = useMemo(() => {
@@ -1327,11 +1358,18 @@ export default function App() {
         const { error } = await supabase.from('completions').delete().eq('id', targetDocId);
         if (error) throw error;
         
+        // Find the record to get its date before deleting from state
+        const recordToDelete = rawCompletions.find(c => c.id === targetDocId);
+        
         // Optimistic update
         setRawCompletions(prev => prev.filter(c => c.id !== targetDocId));
         setCompletions(prev => {
           const next = { ...prev };
-          if (completedToday) delete next[`${dateStr}_${subject}`];
+          if (recordToDelete) {
+            delete next[`${recordToDelete.date}_${subject}`];
+          } else if (completedToday) {
+            delete next[`${dateStr}_${subject}`];
+          }
           return next;
         });
       } else {
@@ -1339,28 +1377,23 @@ export default function App() {
           id: `${user.id}_${dateStr}_${encodeURIComponent(subject)}`,
           user_id: user.id,
           date: dateStr,
-          subject: subject
+          subject: subject,
+          created_at: new Date().toISOString()
         });
         if (error) throw error;
         
         // Optimistic update
+        const newCompletion = {
+          id: `${user.id}_${dateStr}_${encodeURIComponent(subject)}`,
+          user_id: user.id,
+          date: dateStr,
+          subject: subject,
+          created_at: new Date().toISOString()
+        };
+        setRawCompletions(prev => [...prev.filter(c => c.id !== newCompletion.id), newCompletion]);
         setCompletions(prev => ({ ...prev, [`${dateStr}_${subject}`]: true }));
         
-        // Determine if this is the last mission of the cycle being completed
-        const activeSubjects = studyCycle.filter(s => !completedSubjects.includes(s));
-        const currentCycleMissions = activeSubjects.map(s => ({
-          subject: s,
-          completed: activeCycleCompletions.some(c => c.subject === s) || s === subject
-        })).slice(0, dailyMissionsLimit);
-        
-        const otherMissions = currentCycleMissions.filter(m => m.subject !== subject);
-        const allOthersCompleted = otherMissions.every(m => m.completed);
-        
-        if (allOthersCompleted && currentCycleMissions.length > 0) {
-          triggerDragonEncounter();
-        } else {
-          triggerMedievalEffects();
-        }
+        triggerMedievalEffects();
       }
     } catch (err: any) {
       if (err.message?.includes('schema cache')) {
