@@ -467,6 +467,13 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [studyCycle, reviewSubjects, subjectNotes, completedCycles, studiedMinutes, doubleCount, cycleHistory, studyMin, breakMin, lastCycleResetAt, lastBattleResetAt, user]);
 
+  const getLocalDateString = (date: Date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const weekDates = useMemo(() => {
     const today = new Date();
     const day = today.getDay();
@@ -474,7 +481,7 @@ export default function App() {
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() - day + i);
-      dates.push(date.toISOString().split('T')[0]);
+      dates.push(getLocalDateString(date));
     }
     return dates;
   }, []);
@@ -647,7 +654,7 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
-  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayDateStr = useMemo(() => getLocalDateString(), []);
 
   const flashcardHistory = useMemo(() => {
     const history = [];
@@ -655,7 +662,7 @@ export default function App() {
     for (let i = 29; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = getLocalDateString(d);
       history.push({
         date: dStr,
         completed: !!completions[`${dStr}_Flashcards`]
@@ -1226,9 +1233,16 @@ export default function App() {
     return missions;
   }, [activeCycleCompletions, completedSubjects, studyCycle, dailyMissionsLimit]);
 
-  const completedMissions = currentWeekCycles;
+  const totalBattleCompletions = useMemo(() => {
+    return studyCycle.reduce((acc, subject) => {
+      const count = activeBattleCompletions.filter(c => c.subject === subject).length;
+      return acc + Math.min(count, 2);
+    }, 0);
+  }, [studyCycle, activeBattleCompletions]);
+
+  const completedMissions = totalBattleCompletions;
   const totalMissions = totalWeeklyCycles;
-  const questProgress = currentWeekProgress;
+  const questProgress = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
 
   const activeContest = useMemo(() => allContests.find(c => c.id === selectedContestId) || allContests[0], [allContests, selectedContestId]);
 
@@ -1328,7 +1342,7 @@ export default function App() {
           user_id: user.id,
           theme: newRedacao.theme,
           score: finalScore,
-          date: new Date().toISOString().split('T')[0]
+          date: getLocalDateString()
         });
         if (error) throw error;
         addToast("📜 Redação registrada!", "success");
@@ -1360,7 +1374,7 @@ export default function App() {
 
   const toggleMission = async (subject: string, isCompleted: boolean) => {
     if (!user) return;
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getLocalDateString();
     
     // Find if there's a completion TODAY
     const completedToday = rawCompletions.find(c => c.subject === subject && c.date === dateStr);
@@ -1431,7 +1445,7 @@ export default function App() {
 
   const toggleFlashcards = async (isCompleted: boolean) => {
     if (!user) return;
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getLocalDateString();
     const docId = `${user.id}_${dateStr}_Flashcards`;
     
     try {
@@ -1512,7 +1526,7 @@ export default function App() {
         title: newSimulado.title,
         score: Number(newSimulado.score),
         target_score: Number(newSimulado.targetScore),
-        date: new Date().toISOString().split('T')[0]
+        date: getLocalDateString()
       });
       if (error) throw error;
       setNewSimulado({ title: '', score: 0, targetScore: 80 });
@@ -1554,7 +1568,7 @@ export default function App() {
           contest_id: newDetailedSimulado.contestId,
           subject_scores: newDetailedSimulado.subjectScores,
           total_score: totalScore,
-          date: new Date().toISOString().split('T')[0]
+          date: getLocalDateString()
         });
         if (error) throw error;
         addToast("🏆 Simulado registrado com sucesso!", "success");
