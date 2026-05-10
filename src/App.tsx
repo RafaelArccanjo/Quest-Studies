@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Trophy, Swords, BookOpen, LogOut, FileText, PenTool, 
-  CheckSquare, Square, TrendingUp, Calendar, Shield, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
-  Crown, Scroll, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2, RefreshCw
+  Zap, Sword, Cpu, LogOut, FileText, PenTool, 
+  CheckSquare, Square, TrendingUp, Calendar, CircleDashed, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
+  Database, FileJson, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2, RefreshCw, Terminal, Rocket
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from './supabase';
@@ -38,19 +38,19 @@ const DEFAULT_STUDY_CYCLE = [
   'Matemática'
 ];
 
-const battleTable = [
-  { subject: 'Direito Administrativo', conquest: '0/0', progress: 0 },
-  { subject: 'Língua Portuguesa e Redação Oficial', conquest: '0/0', progress: 0 },
-  { subject: 'Direitos Humanos e Tratamento Penal', conquest: '0/0', progress: 0 },
-  { subject: 'Direito Penal', conquest: '0/0', progress: 0 },
-  { subject: 'Administração Pública', conquest: '0/0', progress: 0 },
-  { subject: 'Direito Constitucional', conquest: '0/0', progress: 0 },
-  { subject: 'Ética Profissional', conquest: '0/0', progress: 0 },
-  { subject: 'Informática', conquest: '0/0', progress: 0 },
-  { subject: 'Lei de Execução Penal', conquest: '0/0', progress: 0 },
-  { subject: 'Vendas e Negociação', conquest: '0/40', progress: 0 },
-  { subject: 'Conhecimentos Bancários', conquest: '0/48', progress: 0 },
-  { subject: 'Matemática', conquest: '0/0', progress: 0 },
+const commandProtocol = [
+  { subject: 'Direito Administrativo', compliance: '0/0', progress: 0 },
+  { subject: 'Língua Portuguesa e Redação Oficial', compliance: '0/0', progress: 0 },
+  { subject: 'Direitos Humanos e Tratamento Penal', compliance: '0/0', progress: 0 },
+  { subject: 'Direito Penal', compliance: '0/0', progress: 0 },
+  { subject: 'Administração Pública', compliance: '0/0', progress: 0 },
+  { subject: 'Direito Constitucional', compliance: '0/0', progress: 0 },
+  { subject: 'Ética Profissional', compliance: '0/0', progress: 0 },
+  { subject: 'Informática', compliance: '0/0', progress: 0 },
+  { subject: 'Lei de Execução Penal', compliance: '0/0', progress: 0 },
+  { subject: 'Vendas e Negociação', compliance: '0/40', progress: 0 },
+  { subject: 'Conhecimentos Bancários', compliance: '0/48', progress: 0 },
+  { subject: 'Matemática', compliance: '0/0', progress: 0 },
 ];
 
 const weeklyHistory = [
@@ -174,13 +174,22 @@ const Panel = ({ children, className = '' }: { children: React.ReactNode, classN
 );
 
 const PanelHeader = ({ title, icon: Icon }: { title: string, icon?: React.ElementType }) => (
-  <div className="bg-quest-red-dark border-b-2 border-quest-gold-dark px-4 py-3 flex items-center justify-center relative shadow-md">
-    <div className="absolute left-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_var(--color-quest-gold)]"></div>
-    <div className="flex items-center gap-2 text-quest-gold font-serif tracking-widest text-sm uppercase text-shadow-sm">
-      {Icon && <Icon size={18} />}
-      <span>{title}</span>
+  <div className="bg-quest-panel-light border-b border-quest-gold/30 px-4 py-2 flex items-center justify-between relative overflow-hidden group">
+    {/* HUD Lines */}
+    <div className="absolute top-0 left-0 w-1/4 h-[1px] bg-quest-gold/50" />
+    <div className="absolute top-0 right-0 w-1/4 h-[1px] bg-quest-gold/50" />
+    
+    <div className="flex items-center gap-3 text-quest-gold font-sans font-bold tracking-[0.2em] text-xs uppercase relative z-10">
+      <div className="w-1.5 h-1.5 bg-quest-gold animate-pulse" />
+      {Icon && <Icon size={14} className="text-quest-gold" />}
+      <span className="glow-text">{title}</span>
     </div>
-    <div className="absolute right-3 w-2 h-2 bg-quest-gold rotate-45 shadow-[0_0_5px_var(--color-quest-gold)]"></div>
+
+    <div className="flex gap-1">
+      <div className="w-4 h-1 bg-quest-gold/20" />
+      <div className="w-2 h-1 bg-quest-gold/40" />
+      <div className="w-1 h-1 bg-quest-gold" />
+    </div>
   </div>
 );
 
@@ -212,23 +221,24 @@ export const CONTESTS = [
   }
 ];
 
-const MedievalRain = () => {
-  const items = [Swords, Shield, Crown, Scroll, Sparkles];
-  const drops = Array.from({ length: 40 }).map((_, i) => {
+const StarRain = () => {
+  const items = [Sword, CircleDashed, Cpu, FileJson, Sparkles, Rocket];
+  const drops = Array.from({ length: 50 }).map((_, i) => {
     const Icon = items[Math.floor(Math.random() * items.length)];
     return {
       id: i,
       Icon,
       left: `${Math.random() * 100}vw`,
-      duration: Math.random() * 2 + 2,
+      duration: Math.random() * 1.5 + 1,
       delay: Math.random() * 0.5,
-      size: Math.random() * 24 + 16,
+      size: Math.random() * 20 + 10,
       rotation: Math.random() * 360
     };
   });
 
   return (
     <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden">
+      <div className="scanline-effect"></div>
       {drops.map(drop => (
         <motion.div
           key={drop.id}
@@ -244,7 +254,7 @@ const MedievalRain = () => {
             ease: "linear",
             repeat: 0
           }}
-          className="absolute text-quest-gold drop-shadow-[0_0_8px_rgba(184,155,94,0.6)]"
+          className="absolute text-quest-gold drop-shadow-[0_0_15px_var(--color-quest-gold)]"
         >
           <drop.Icon size={drop.size} />
         </motion.div>
@@ -262,6 +272,19 @@ export default function App() {
   const isInitialSettingsLoadDone = useRef(false);
 
   const [studyCycle, setStudyCycle] = useState<string[]>(DEFAULT_STUDY_CYCLE);
+
+  const moveSubject = (index: number, direction: 'left' | 'right') => {
+    const newCycle = [...studyCycle];
+    const newIndex = direction === 'left' ? index - 1 : index + 1;
+    
+    if (newIndex >= 0 && newIndex < newCycle.length) {
+      const temp = newCycle[index];
+      newCycle[index] = newCycle[newIndex];
+      newCycle[newIndex] = temp;
+      setStudyCycle(newCycle);
+      addToast(`Matéria movida para ${direction === 'left' ? 'esquerda' : 'direita'}`, "success");
+    }
+  };
 
   // Remove localStorage useEffect for studyCycle
 
@@ -601,10 +624,10 @@ export default function App() {
       const minutes = Math.floor(cycleTimeLeft / 60);
       const seconds = cycleTimeLeft % 60;
       const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      const phaseStr = cyclePhase === 'study' ? '⚔️ Estudo' : '☕ Pausa';
-      document.title = `${timeStr} - ${phaseStr} | Quest do Concurseiro`;
+      const phaseStr = cyclePhase === 'study' ? '📡 Protocolo' : '🛰️ Calibração';
+      document.title = `${timeStr} - ${phaseStr} | Galactic Command`;
     } else {
-      document.title = 'Quest do Concurseiro';
+      document.title = 'Galactic Command';
     }
   }, [isCycleRunning, cycleTimeLeft, cyclePhase]);
   const [newSimulado, setNewSimulado] = useState({ title: '', score: 0, targetScore: 80 });
@@ -1591,10 +1614,10 @@ export default function App() {
             ease: "easeInOut" 
           }}
         >
-          <CrestLogo className="w-32 h-32 text-quest-gold drop-shadow-[0_0_20px_rgba(184,155,94,0.8)] mb-6" />
+          <Rocket className="w-32 h-32 text-quest-gold drop-shadow-[0_0_20px_var(--color-quest-gold)] mb-6 animate-pulse" />
         </motion.div>
         <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] animate-pulse">
-          FORJANDO O REINO...
+          SINCROZINANDO SISTEMAS...
         </h1>
       </div>
     );
@@ -1603,37 +1626,45 @@ export default function App() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Panel className="w-full max-w-md p-8 text-center">
-          <CrestLogo className="w-24 h-24 mx-auto text-quest-gold mb-4 drop-shadow-[0_0_15px_rgba(184,155,94,0.6)]" />
-          <h1 className="font-serif text-3xl text-quest-gold mb-2">Quest Studies</h1>
-          <p className="text-quest-text-muted mb-8 italic">Identifique-se, viajante.</p>
+        <Panel className="w-full max-w-md p-8 text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-quest-gold/20 animate-pulse" />
+          <Rocket className="w-24 h-24 mx-auto text-quest-gold mb-4 drop-shadow-[0_0_15px_var(--color-quest-gold)]" />
+          <h1 className="font-serif text-2xl text-quest-gold mb-2 glow-text tracking-widest uppercase">GALACTIC COMMAND</h1>
+          <p className="text-quest-text-muted mb-8 font-mono text-[10px] tracking-[0.3em] uppercase">Status: Aguardando Autorização</p>
           
-          <form onSubmit={handleLogin} className="space-y-4 text-left">
+          <form onSubmit={handleLogin} className="space-y-4 text-left relative z-10">
             <div>
-              <label className="block text-quest-gold-dark text-xs uppercase tracking-widest mb-1">E-mail</label>
+              <label className="block text-quest-gold-dark text-[10px] uppercase tracking-widest mb-1 font-mono">Identificação (E-mail)</label>
               <input 
                 type="email" 
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-2 text-quest-gold focus:outline-none focus:border-quest-gold"
+                className="w-full bg-black/40 border border-quest-gold/20 rounded-sm p-3 text-quest-gold font-mono focus:outline-none focus:border-quest-gold/60 focus:bg-quest-gold/5 transition-all"
+                placeholder="USER_ID@GALACTIC.COM"
                 required
               />
             </div>
             <div>
-              <label className="block text-quest-gold-dark text-xs uppercase tracking-widest mb-1">Senha</label>
+              <label className="block text-quest-gold-dark text-[10px] uppercase tracking-widest mb-1 font-mono">Código (Senha)</label>
               <input 
                 type="password" 
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full bg-quest-panel-dark border border-quest-gold-dark/30 rounded-sm p-2 text-quest-gold focus:outline-none focus:border-quest-gold"
+                className="w-full bg-black/40 border border-quest-gold/20 rounded-sm p-3 text-quest-gold font-mono focus:outline-none focus:border-quest-gold/60 focus:bg-quest-gold/5 transition-all"
+                placeholder="********"
                 required
               />
             </div>
-            {loginError && <p className="text-red-500 text-xs italic">{loginError}</p>}
-            <button type="submit" className="w-full medieval-button mt-4 flex items-center justify-center gap-2">
-              <Shield size={18} /> Entrar no Reino
+            {loginError && <p className="text-quest-red text-[10px] italic font-mono">{loginError}</p>}
+            <button type="submit" className="w-full medieval-button mt-6 flex items-center justify-center gap-3 group">
+              <Terminal size={18} className="group-hover:animate-pulse" /> 
+              <span>INICIAR PROTOCOLO</span>
             </button>
           </form>
+
+          {/* HUD details */}
+          <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-quest-gold/30" />
+          <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-quest-gold/30" />
         </Panel>
       </div>
     );
@@ -1751,7 +1782,7 @@ export default function App() {
                       event.type === 'double' ? 'bg-orange-500/10 border-orange-500 text-orange-500' :
                       'bg-green-500/10 border-green-500 text-green-500'
                     }`}>
-                      {event.type === 'study' ? <BookOpen size={20} /> :
+                      {event.type === 'study' ? <Terminal size={20} /> :
                        event.type === 'double' ? <Flame size={20} /> :
                        <Coffee size={20} />}
                     </div>
@@ -1859,7 +1890,7 @@ export default function App() {
                       {cyclePhase === 'break' ? (
                         <><Coffee size={12} /> PAUSA — DESCANSE</>
                       ) : (
-                        <><Swords size={12} /> FASE DE ESTUDO</>
+                        <><Sword size={12} /> FASE DE ESTUDO</>
                       )}
                     </div>
                   </div>
@@ -2024,7 +2055,7 @@ export default function App() {
   return (
     <div className="min-h-screen p-4 md:p-8 selection:bg-quest-red selection:text-white relative">
       <div className="fixed inset-0 pointer-events-none z-[50] shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]" />
-      {showRain && <MedievalRain />}
+      {showRain && <StarRain />}
 
       {/* TOASTS */}
       <div className="fixed top-4 right-4 z-[10001] flex flex-col gap-2 pointer-events-none">
@@ -2067,11 +2098,11 @@ export default function App() {
         <div className="flex items-center gap-4 mb-4 md:mb-0">
           <div className="w-14 h-14 rounded-full bg-quest-red-dark border-2 border-quest-gold flex items-center justify-center shadow-[0_0_20px_rgba(184, 155, 94, 0.4)] relative overflow-hidden">
             <div className="absolute inset-0 bg-black/20"></div>
-            <CrestLogo className="w-8 h-8 text-quest-gold relative z-10" />
+            <Rocket className="w-8 h-8 text-quest-gold relative z-10" />
           </div>
           <div>
-            <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">QUEST STUDIES</h1>
-            <p className="text-sm text-quest-gold-dark italic">A Jornada do Guerreiro - Concursos</p>
+            <h1 className="font-serif text-3xl text-quest-gold tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">GALACTIC COMMAND</h1>
+            <p className="text-sm text-quest-gold-dark italic">Central de Inteligência Galactic - Missões</p>
           </div>
         </div>
         
@@ -2080,15 +2111,15 @@ export default function App() {
             onClick={() => setActiveTab('dashboard')} 
             className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)] ${activeTab === 'dashboard' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
           >
-            <Shield size={18} />
+            <CircleDashed size={18} />
             DASHBOARD
           </button>
           <button 
             onClick={() => setActiveTab('simulados')} 
             className={`flex items-center gap-2 transition-colors hover:drop-shadow-[0_0_5px_rgba(184, 155, 94, 0.8)] ${activeTab === 'simulados' ? 'text-quest-gold' : 'hover:text-quest-gold'}`}
           >
-            <Trophy size={18} />
-            SIMULADOS
+            <Rocket size={18} />
+            CONSELHO
           </button>
           <button 
             onClick={() => setActiveTab('ciclo')} 
@@ -2118,10 +2149,10 @@ export default function App() {
           <Panel className="p-6 relative">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-full bg-quest-red-dark/40 border border-quest-red flex items-center justify-center shadow-[0_0_10px_rgba(139,0,0,0.5)]">
-                <Trophy className="text-quest-gold" size={24} />
+                <Zap className="text-quest-gold" size={24} />
               </div>
               <div>
-                <h3 className="text-sm text-quest-text-muted uppercase tracking-widest mb-1 font-serif">Progresso da Quest</h3>
+                <h3 className="text-sm text-quest-text-muted uppercase tracking-widest mb-1 font-serif">Protocolo de Operação</h3>
                 <p className="font-serif text-4xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{questProgress}%</p>
               </div>
             </div>
@@ -2131,7 +2162,7 @@ export default function App() {
           <Panel className="p-6 relative">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-quest-red-dark/40 border border-quest-red flex items-center justify-center shadow-[0_0_10px_rgba(139,0,0,0.5)]">
-                <Swords className="text-quest-gold" size={24} />
+                <Sword className="text-quest-gold" size={24} />
               </div>
               <div>
                 <h3 className="text-sm text-quest-text-muted uppercase tracking-widest mb-1 font-serif">Missões Concluídas</h3>
@@ -2208,7 +2239,7 @@ export default function App() {
             onClick={() => toggleFlashcards(!!completions[`${todayDateStr}_Flashcards`])}
           >
             <div className={`flex items-center gap-3 ${!!completions[`${todayDateStr}_Flashcards`] ? 'text-quest-text-muted line-through' : 'text-quest-gold-dark hover:text-quest-gold'}`}>
-              <BookOpen size={18} />
+              <Terminal size={18} />
               <div className="flex flex-col">
                 <span className="font-serif tracking-widest text-sm uppercase">FLASHCARDS DO DIA</span>
                 <div className="flex gap-1 mt-1.5">
@@ -2243,7 +2274,7 @@ export default function App() {
                 <RotateCcw size={10} /> Restaurar Ordem Padrão
               </button>
             </div>
-            <Reorder.Group axis="x" values={studyCycle} onReorder={setStudyCycle} className="flex flex-wrap justify-center gap-6 relative">
+            <div className="flex flex-wrap justify-center gap-8 py-4 relative">
               {studyCycle.map((subject, idx) => {
                 const isCheckedInCycle = activeCycleCompletions.some(c => c.subject === subject);
                 const isLongTermCompleted = completedSubjects.includes(subject);
@@ -2252,84 +2283,143 @@ export default function App() {
                 const isNew = !isLongTermCompleted && !isReview;
                 
                 return (
-                  <Reorder.Item 
+                  <motion.div 
+                    layout
                     key={subject} 
-                    value={subject}
-                    className={`relative flex flex-col items-center group cursor-grab active:cursor-grabbing transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
-                    onClick={() => setSelectedSubject(subject)}
+                    className={`relative flex flex-col items-center group transition-all duration-300 ${isLongTermCompleted ? 'opacity-30 grayscale' : ''}`}
                   >
-                    <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative ${
-                      isNextToStudy 
-                        ? 'bg-quest-gold/20 border-quest-gold shadow-[0_0_15px_rgba(184,155,94,0.6)] scale-110' 
-                        : isCheckedInCycle 
-                          ? 'bg-quest-red/10 border-quest-red/50' 
-                          : isNew
-                            ? 'bg-yellow-400/20 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] scale-105'
-                            : 'bg-quest-panel-light border-quest-gold-dark/30 hover:border-quest-gold/50'
-                    }`}>
+                    {/* Interaction Overlay (Move Controls) */}
+                    <div className="absolute -top-6 left-0 right-0 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity z-30 px-1">
+                      <button 
+                        disabled={idx === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveSubject(idx, 'left');
+                        }}
+                        className="bg-quest-panel border border-quest-gold/40 text-quest-gold p-1 hover:bg-quest-gold/20 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <SkipForward size={12} className="rotate-180" />
+                      </button>
+                      <button 
+                        disabled={idx === studyCycle.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveSubject(idx, 'right');
+                        }}
+                        className="bg-quest-panel border border-quest-gold/40 text-quest-gold p-1 hover:bg-quest-gold/20 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <SkipForward size={12} />
+                      </button>
+                    </div>
+
+                    {/* Square Card Design */}
+                    <div 
+                      className={`w-20 h-20 border-2 flex items-center justify-center transition-all duration-300 relative overflow-hidden cursor-pointer ${
+                        isNextToStudy 
+                          ? 'bg-quest-gold/20 border-quest-gold shadow-[6px_6px_0px_var(--color-quest-gold-dark)] scale-110 z-10' 
+                          : isCheckedInCycle 
+                            ? 'bg-quest-red/20 border-quest-red shadow-[4px_4px_0px_var(--color-quest-red-dark)]' 
+                            : isNew
+                              ? 'bg-yellow-400/10 border-yellow-400 shadow-[6px_6px_0px_rgba(250,204,21,0.5)] scale-105'
+                              : 'bg-quest-panel-light border-quest-gold-dark/40 shadow-[4px_4px_0px_rgba(0,0,0,0.3)] hover:border-quest-gold/60 hover:shadow-[6px_6px_0px_var(--color-quest-gold-dark)]'
+                      }`}
+                      onClick={() => setSelectedSubject(subject)}
+                    >
+                      {/* Corner Accents */}
+                      <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-quest-gold opacity-40 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-quest-gold opacity-40 group-hover:opacity-100 transition-opacity" />
+
+                      {/* Diagonal Stripes Effect for background */}
+                      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,var(--color-quest-gold)_10px,var(--color-quest-gold)_11px)]" />
+                      
                       {isCheckedInCycle ? (
-                        <CheckCircle2 className="text-quest-red" size={32} />
+                        <div className="relative z-10 flex flex-col items-center">
+                          <CheckCircle2 className="text-quest-gold mb-1" size={24} />
+                          <span className="text-[10px] font-mono tracking-tighter text-quest-gold font-bold">FEITO</span>
+                        </div>
                       ) : (
-                        <span className={`font-serif text-xl ${isNew ? 'text-yellow-400 font-bold' : 'text-quest-gold'}`}>{idx + 1}</span>
+                        <div className="relative z-10 flex flex-col items-center">
+                          <span className={`font-mono text-3xl font-black ${isNew ? 'text-yellow-400' : 'text-quest-gold'}`}>
+                            {String(idx + 1).padStart(2, '0')}
+                          </span>
+                        </div>
                       )}
 
-                      {/* Símbolos de Status */}
+                      {/* Status Badges - Square style */}
                       {!isCheckedInCycle && !isLongTermCompleted && (
-                        <div className="absolute -top-2 -right-2 flex flex-col gap-1">
+                        <div className="absolute top-0 right-0 flex">
                           {isNew && (
-                            <div className="bg-yellow-400 rounded-full p-1.5 shadow-[0_0_8px_rgba(250,204,21,0.8)] border-2 border-black/20 animate-pulse" title="Matéria Nova">
-                              <Sparkles size={12} className="text-black" />
+                            <div className="bg-yellow-400 px-1 py-0.5 border-l border-b border-black/20" title="Matéria Nova">
+                              <Sparkles size={10} className="text-black" />
                             </div>
                           )}
                           {isReview && (
-                            <div className="bg-quest-red rounded-full p-1.5 shadow-[0_0_8px_rgba(58,90,64,0.6)] border-2 border-quest-gold-dark/30" title="Revisão">
-                              <RefreshCw size={12} className="text-quest-gold" />
+                            <div className="bg-quest-red px-1 py-0.5 border-l border-b border-quest-gold-dark" title="Revisão">
+                              <RefreshCw size={10} className="text-quest-gold" />
                             </div>
                           )}
                         </div>
                       )}
-                      
-                      {/* Destaque de Próxima Missão (Linha Brilhosa) */}
+
+                      {/* Scanning Line Effect for "Next to Study" */}
                       {isNextToStudy && (
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-transparent via-quest-gold to-transparent shadow-[0_0_15px_rgba(184,155,94,1)] rounded-full animate-pulse" />
+                        <motion.div 
+                          initial={{ top: '-100%' }}
+                          animate={{ top: '100%' }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                          className="absolute left-0 right-0 h-[2px] bg-quest-gold/60 shadow-[0_0_15px_var(--color-quest-gold)] z-20"
+                        />
                       )}
                     </div>
-                    <div className="mt-3 text-center max-w-[120px]">
-                      <p className={`text-xs font-serif tracking-wider uppercase ${isNextToStudy ? 'text-quest-gold font-bold' : 'text-quest-text'}`}>
-                        {subject}
-                      </p>
-                      {isCheckedInCycle && <span className="text-[10px] text-quest-red font-bold uppercase mt-1 block">Concluído</span>}
-                      {!isCheckedInCycle && !isLongTermCompleted && (
-                        <div className="flex justify-center gap-1 mt-1">
-                          {isNew && <span className="text-[8px] text-yellow-400 font-bold uppercase px-1 bg-yellow-400/20 rounded-sm border border-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.4)]">Nova</span>}
-                          {isReview && <span className="text-[8px] text-quest-gold font-bold uppercase px-1 bg-quest-red/20 rounded-sm border border-quest-red/30">Revisão</span>}
+
+                    {/* Label Area */}
+                    <div className="mt-4 text-center w-24">
+                      <div className={`p-1.5 border shadow-sm transition-all duration-300 relative ${
+                        isNextToStudy 
+                          ? 'border-quest-gold bg-quest-gold/10' 
+                          : 'border-quest-gold-dark/20 bg-black/20 group-hover:border-quest-gold/40'
+                      }`}>
+                        {/* Tiny corner dots for label area */}
+                        <div className="absolute top-0 left-0 w-0.5 h-0.5 bg-quest-gold opacity-50" />
+                        <div className="absolute bottom-0 right-0 w-0.5 h-0.5 bg-quest-gold opacity-50" />
+
+                        <p className={`text-[9px] font-mono leading-tight tracking-[0.1em] uppercase truncate line-clamp-2 ${isNextToStudy ? 'text-quest-gold font-bold' : 'text-quest-text'}`}>
+                          {subject}
+                        </p>
+                      </div>
+                      
+                      {isCheckedInCycle && (
+                        <div className="bg-quest-red/20 border-x border-b border-quest-red/50 py-0.5">
+                          <span className="text-[8px] text-quest-gold font-bold tracking-widest uppercase">CONCLUÍDO</span>
                         </div>
                       )}
                     </div>
+
+                    {/* Connector line (Sharp) */}
                     {idx < studyCycle.length - 1 && (
-                      <div className="hidden lg:block absolute -right-6 top-8 w-6 h-[2px] bg-quest-gold-dark/20"></div>
+                      <div className="hidden lg:block absolute -right-8 top-10 w-8 h-[2px] bg-gradient-to-r from-quest-gold-dark/40 to-transparent"></div>
                     )}
-                  </Reorder.Item>
+                  </motion.div>
                 );
               })}
-            </Reorder.Group>
+            </div>
           </div>
         </Panel>
 
-        {/* TABELA DE BATALHA */}
+        {/* MÓDULO DE MATRIZ */}
         <div className="pt-4">
-          <h2 className="font-serif text-quest-text text-lg tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="text-quest-gold-dark">×</span> TABELA DE BATALHA
+          <h2 className="font-serif text-quest-text text-lg tracking-widest uppercase mb-4 flex items-center gap-2 glow-text">
+            <span className="text-quest-gold-dark animate-pulse">●</span> CENTRAL DE PROTOCOLOS
           </h2>
           <Panel>
-            <PanelHeader title="MATÉRIAS — PROGRESSO DE GUERRA" />
+            <PanelHeader title="UNIDADES — STATUS DE SINCRONIA" />
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left border-collapse">
                 <thead>
-                  <tr className="bg-quest-red-dark/20 text-quest-gold font-serif text-xs tracking-widest uppercase border-b border-quest-gold-dark/50">
-                    <th className="p-4 font-normal border-r border-quest-gold-dark/20 w-1/2">Matéria</th>
-                    <th className="p-4 font-normal border-r border-quest-gold-dark/20 text-center">Conquista</th>
-                    <th className="p-4 font-normal text-center w-1/4">Progresso</th>
+                  <tr className="bg-quest-panel-light text-quest-gold font-sans font-bold text-[10px] tracking-[0.2em] uppercase border-b border-quest-gold/20">
+                    <th className="p-4 font-normal border-r border-quest-gold/10 w-1/2">SETOR OPERACIONAL</th>
+                    <th className="p-4 font-normal border-r border-quest-gold/10 text-center">INTEGRIDADE</th>
+                    <th className="p-4 font-normal text-center w-1/4">CALIBRAÇÃO</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs">
@@ -2364,7 +2454,7 @@ export default function App() {
                             </div>
                           </td>
                           <td className="p-4 border-r border-quest-gold-dark/20 text-center font-mono text-quest-text-muted" onClick={() => setSelectedSubject(row.subject)}>
-                            {row.conquest}
+                            {row.compliance}
                           </td>
                           <td className="p-4 flex items-center gap-3">
                             <ProgressBar progress={row.progress} className="flex-1" onClick={() => setSelectedSubject(row.subject)} />
@@ -2536,7 +2626,7 @@ export default function App() {
         {/* TEMPORADA DE SIMULADOS */}
         <div className="pt-4">
           <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase mb-4 flex items-center gap-3 drop-shadow-md">
-            <Trophy size={24} className="text-quest-red" /> TEMPORADA DE SIMULADOS
+            <Zap size={24} className="text-quest-red" /> TEMPORADA DE SIMULADOS
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
@@ -2598,7 +2688,7 @@ export default function App() {
             <Panel className="mb-6">
               <div className="px-4 py-3 border-b-2 border-quest-gold-dark/30 flex items-center justify-between bg-black/20">
                 <div className="flex items-center gap-2 text-quest-gold text-sm font-serif tracking-widest uppercase">
-                  <BookOpen size={16} /> DESEMPENHO POR MATÉRIA
+                  <Terminal size={16} /> DESEMPENHO POR MATÉRIA
                 </div>
                 <select 
                   value={selectedContestId}
@@ -2660,7 +2750,7 @@ export default function App() {
                     <span>{week.date}</span>
                     {week.flashcards > 0 && (
                       <span className="ml-2 flex items-center gap-1 text-quest-gold-dark opacity-80" title={`${week.flashcards} dias de flashcards concluídos`}>
-                        <BookOpen size={12} />
+                        <Terminal size={12} />
                         {week.flashcards}
                       </span>
                     )}
@@ -2696,7 +2786,7 @@ export default function App() {
                     className="bg-quest-panel-light/30 border border-quest-gold/30 p-4 rounded-sm flex items-center justify-between relative overflow-hidden group cursor-pointer hover:bg-quest-panel-light/50 transition-colors"
                   >
                     <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-30 transition-opacity">
-                      <Trophy size={40} className="text-quest-gold" />
+                      <Zap size={40} className="text-quest-gold" />
                     </div>
                     <div className="relative z-10">
                       <h3 className="text-quest-gold font-serif tracking-widest text-sm uppercase mb-1">{row.subject}</h3>
@@ -2704,10 +2794,10 @@ export default function App() {
                     </div>
                     <div className="text-right relative z-10">
                       <div className="flex items-center gap-2 text-quest-gold mb-1">
-                        <Crown size={16} />
+                        <Cpu size={16} />
                         <span className="font-mono text-lg">100%</span>
                       </div>
-                      <p className="text-[10px] text-quest-gold-dark uppercase tracking-tighter">Conquista: {row.conquest}</p>
+                      <p className="text-[10px] text-quest-gold-dark uppercase tracking-tighter">Protocolo: {row.compliance}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -2881,7 +2971,7 @@ export default function App() {
         <footer className="pt-16 pb-8 text-center relative">
           <div className="absolute top-8 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-quest-gold-dark to-transparent"></div>
           <div className="flex justify-center mb-6">
-            <CrestLogo className="w-10 h-10 text-quest-gold-dark/40" />
+            <Rocket className="w-10 h-10 text-quest-gold-dark/40" />
           </div>
           <p className="font-serif italic text-quest-gold text-lg drop-shadow-md">
             "O dragão que guarda o tesouro não dorme — e nem o guerreiro que estuda"
@@ -2909,7 +2999,7 @@ export default function App() {
           >
             <div className="p-4 border-b-2 border-quest-gold-dark/30 flex justify-between items-center bg-black/40">
               <h2 className="font-serif text-quest-gold text-xl tracking-widest uppercase flex items-center gap-2">
-                <Trophy size={20} className="text-quest-gold" /> 
+                <Zap size={20} className="text-quest-gold" /> 
                 ÁREA DE SIMULADOS
               </h2>
               <button onClick={() => {
@@ -3215,7 +3305,7 @@ export default function App() {
                   <div className="flex flex-col h-full">
                     <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center gap-2 text-quest-gold font-serif text-sm uppercase tracking-widest">
-                        <Scroll size={18} />
+                        <FileJson size={18} />
                         <span>Histórico de Revisões</span>
                       </div>
                       <button 
@@ -3275,7 +3365,7 @@ export default function App() {
                         onClick={() => saveSubjectNote(selectedSubject)}
                         className="flex-[2] medieval-button flex items-center justify-center gap-2 py-3"
                       >
-                        <Scroll size={18} />
+                        <FileJson size={18} />
                         <span>Salvar Revisão</span>
                       </button>
                     </div>

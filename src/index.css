@@ -1,153 +1,162 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=JetBrains+Mono:wght@400;700&family=MedievalSharp&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-quest-bg: #0a0f0a;
-  --color-quest-panel: #141d14;
-  --color-quest-panel-light: #1e2b1e;
-  --color-quest-gold: #b89b5e;
-  --color-quest-gold-dark: #6e5d38;
-  --color-quest-red: #3a5a40;
-  --color-quest-red-dark: #1b2e1b;
-  --color-quest-text: #d8e3d8;
-  --color-quest-text-muted: #8a9a8a;
+  --color-quest-bg: #05070a;
+  --color-quest-panel: #0d1117;
+  --color-quest-panel-light: #161b22;
+  --color-quest-gold: #00f2ff; /* Jedi Cyan */
+  --color-quest-gold-dark: #0088cc;
+  --color-quest-red: #ff003c; /* Sith Red */
+  --color-quest-red-dark: #80001e;
+  --color-quest-text: #e6edf3;
+  --color-quest-text-muted: #8b949e;
   
-  --font-serif: 'Cinzel Decorative', serif;
-  --font-cinzel: 'Cinzel', serif;
-  --font-sans: 'MedievalSharp', cursive;
+  --font-serif: 'Exo 2', sans-serif;
+  --font-cinzel: 'Exo 2', sans-serif;
+  --font-sans: 'Rajdhani', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
 body {
   background-color: var(--color-quest-bg);
   background-image: 
-    radial-gradient(circle at 50% 50%, rgba(20, 29, 20, 0.4) 0%, rgba(10, 15, 10, 1) 100%),
-    url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='%23141d14' stroke-width='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4v-4H4v4H0v2h4v4h2v-4h4v-2H6zM36 4v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM66 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM36 64v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 64v-4H4v4H0v2h4v4h2v-4h4v-2H6zM66 4v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM33 50v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 50v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM3 20v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM33 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM63 50v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM33 80v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 80v-4H1v4H-3v2h4v4h2v-4h4v-2H3zM63 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.05) 0%, rgba(5, 7, 10, 1) 100%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 1000 1000' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='10' cy='10' r='0.5' fill='white' opacity='0.5'/%3E%3Ccircle cx='500' cy='200' r='0.8' fill='white' opacity='0.8'/%3E%3Ccircle cx='900' cy='700' r='0.4' fill='white' opacity='0.4'/%3E%3Ccircle cx='300' cy='800' r='0.6' fill='white' opacity='0.6'/%3E%3Ccircle cx='150' cy='400' r='0.7' fill='white' opacity='0.7'/%3E%3Ccircle cx='850' cy='150' r='0.5' fill='white' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: cover, 200px, 1000px;
   background-attachment: fixed;
   color: var(--color-quest-text);
   font-family: var(--font-sans);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* Custom Scrollbar for a better look */
+/* Custom Scrollbar - Sci-Fi style */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--color-quest-bg);
-  border-left: 1px solid var(--color-quest-gold-dark);
+  border-left: 1px solid rgba(0, 242, 255, 0.1);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--color-quest-gold-dark);
-  border-radius: 4px;
+  box-shadow: 0 0 10px var(--color-quest-gold);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-quest-gold);
 }
 
-/* Medieval Panel Styles */
+/* Galactic Panel Styles */
 .medieval-panel {
   background-color: var(--color-quest-panel);
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
-  border: 2px solid var(--color-quest-gold-dark);
-  box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 10px 30px rgba(0,0,0,0.7);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 15px rgba(0, 242, 255, 0.05);
   position: relative;
+  clip-path: polygon(
+    0 10px, 10px 0, 
+    calc(100% - 10px) 0, 100% 10px, 
+    100% calc(100% - 10px), calc(100% - 10px) 100%, 
+    10px 100%, 0 calc(100% - 10px)
+  );
 }
 
 .medieval-panel::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; width: 15px; height: 15px;
-  border-top: 2px solid var(--color-quest-gold);
-  border-left: 2px solid var(--color-quest-gold);
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(0, 242, 255, 0.1) 0%, transparent 10%, transparent 90%, rgba(0, 242, 255, 0.1) 100%);
   pointer-events: none;
-  z-index: 10;
-  box-shadow: -2px -2px 5px rgba(184, 155, 94, 0.2);
 }
 
-.medieval-panel::after {
-  content: '';
+.galactic-accent {
   position: absolute;
-  bottom: 0; right: 0; width: 15px; height: 15px;
-  border-bottom: 2px solid var(--color-quest-gold);
-  border-right: 2px solid var(--color-quest-gold);
-  pointer-events: none;
-  z-index: 10;
-  box-shadow: 2px 2px 5px rgba(184, 155, 94, 0.2);
+  background: var(--color-quest-gold);
+  opacity: 0.5;
 }
 
 .medieval-panel-inner {
   position: relative;
   z-index: 1;
-  border: 1px solid rgba(184, 155, 94, 0.1);
-  margin: 4px;
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
-}
-
-/* Decorative Rivets */
-.medieval-panel::before, .medieval-panel::after {
-  /* Keep existing corner logic but add rivets as separate elements if possible */
-}
-
-/* Let's add rivets using a background on the inner panel */
-.medieval-panel-inner::before {
-  content: '';
-  position: absolute;
-  top: 2px; left: 2px; width: 4px; height: 4px;
-  background: var(--color-quest-gold-dark);
-  border-radius: 50%;
-  opacity: 0.4;
-  box-shadow: 0 0 2px black;
-}
-
-.medieval-panel-inner::after {
-  content: '';
-  position: absolute;
-  bottom: 2px; right: 2px; width: 4px; height: 4px;
-  background: var(--color-quest-gold-dark);
-  border-radius: 50%;
-  opacity: 0.4;
-  box-shadow: 0 0 2px black;
+  background-color: rgba(22, 27, 34, 0.5);
+  margin: 1px;
+  min-height: inherit;
+  clip-path: polygon(
+    0 10px, 10px 0, 
+    calc(100% - 10px) 0, 100% 10px, 
+    100% calc(100% - 10px), calc(100% - 10px) 100%, 
+    10px 100%, 0 calc(100% - 10px)
+  );
 }
 
 .medieval-input {
-  background-color: var(--color-quest-panel-light);
-  border: 1px solid var(--color-quest-gold-dark);
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 242, 255, 0.2);
   color: var(--color-quest-gold);
-  font-family: var(--font-sans);
-  padding: 0.5rem 1rem;
+  font-family: var(--font-mono);
+  padding: 0.6rem 1rem;
   outline: none;
   transition: all 0.3s ease;
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 0 100%);
 }
 
 .medieval-input:focus {
   border-color: var(--color-quest-gold);
-  box-shadow: 0 0 10px rgba(184, 155, 94, 0.3);
+  background-color: rgba(0, 242, 255, 0.05);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
 }
 
 .medieval-button {
-  background: linear-gradient(to bottom, var(--color-quest-red), var(--color-quest-red-dark));
-  border: 1px solid var(--color-quest-gold);
-  color: var(--color-quest-gold);
+  background: linear-gradient(45deg, var(--color-quest-red-dark), var(--color-quest-red));
+  border: none;
+  color: #fff;
   font-family: var(--font-serif);
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0.5rem 1.5rem;
+  padding: 0.7rem 2rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(255, 0, 60, 0.3);
+  position: relative;
+  overflow: hidden;
+  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
 }
 
 .medieval-button:hover {
-  background: linear-gradient(to bottom, #4a7a50, var(--color-quest-red));
-  box-shadow: 0 0 15px rgba(184, 155, 94, 0.4);
-  transform: translateY(-1px);
+  filter: brightness(1.2);
+  box-shadow: 0 0 20px rgba(255, 0, 60, 0.5);
+  transform: translateX(5px);
 }
 
-.medieval-button:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+.medieval-button::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: 0.5s;
+}
+
+.medieval-button:hover::after {
+  left: 100%;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+.scanline-effect {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 2px;
+  background: rgba(0, 242, 255, 0.1);
+  opacity: 0.5;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+  pointer-events: none;
+  z-index: 9999;
+  animation: scanline 8s linear infinite;
 }
 
 @keyframes spin-slow {
@@ -156,7 +165,15 @@ body {
 }
 
 .animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+  animation: spin-slow 12s linear infinite;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px var(--color-quest-gold);
+}
+
+.glow-text-red {
+  text-shadow: 0 0 10px var(--color-quest-red);
 }
 
 
