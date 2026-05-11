@@ -2277,7 +2277,11 @@ export default function App() {
         <Panel>
           <PanelHeader title="MAPA DA JORNADA (CICLO COMPLETO)" />
           <div className="p-6">
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-center flex-wrap gap-4 mb-6">
+              <div className="bg-quest-panel-light border border-quest-gold/20 px-3 py-1.5 flex items-center gap-2">
+                <Terminal size={12} className="text-quest-gold" />
+                <span className="text-[10px] font-mono text-quest-gold uppercase tracking-widest">Protocolo de Carga: 20-30 Questões / Tópico</span>
+              </div>
               <button 
                 onClick={() => {
                   setStudyCycle(DEFAULT_STUDY_CYCLE);
@@ -2400,6 +2404,14 @@ export default function App() {
                         <p className={`text-[9px] font-mono leading-tight tracking-[0.1em] uppercase truncate line-clamp-2 ${isNextToStudy ? 'text-quest-gold font-bold' : 'text-quest-text'}`}>
                           {subject}
                         </p>
+                      </div>
+
+                      {/* Question Target Badge */}
+                      <div className="mt-1.5 flex justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div className="px-1.5 py-0.5 border border-quest-gold/10 bg-black/40 flex items-center gap-1">
+                          <Cpu size={8} className="text-quest-gold/50" />
+                          <span className="text-[7px] font-mono text-quest-gold/70 tracking-tighter uppercase whitespace-nowrap">Goal: 20-30 Q</span>
+                        </div>
                       </div>
                       
                       {isCheckedInCycle && (
