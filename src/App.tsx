@@ -338,7 +338,6 @@ const POLICIA_SUBJECTS = [
   'Legislação Específica',
   'Direito Constitucional',
   'Ética Profissional',
-  'Informática',
   'Lei de Execução Penal'
 ];
 
