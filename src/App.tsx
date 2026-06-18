@@ -1313,11 +1313,11 @@ export default function App() {
       weekDates.forEach(date => {
         if (completions[`${date}_${subject}`]) count++;
       });
-      return acc + Math.min(count, 2);
+      return acc + Math.min(count, 1);
     }, 0);
   }, [weekDates, completions, filteredStudyCycle]);
 
-  const totalWeeklyCycles = useMemo(() => filteredStudyCycle.length * 2, [filteredStudyCycle]);
+  const totalWeeklyCycles = useMemo(() => filteredStudyCycle.length * 1, [filteredStudyCycle]);
   
   const currentWeekProgress = useMemo(() => {
     return totalWeeklyCycles > 0 ? Math.round((currentWeekCycles / totalWeeklyCycles) * 100) : 0;
@@ -1383,7 +1383,7 @@ export default function App() {
   const totalBattleCompletions = useMemo(() => {
     return filteredStudyCycle.reduce((acc, subject) => {
       const count = activeBattleCompletions.filter(c => c.subject === subject).length;
-      return acc + Math.min(count, 2);
+      return acc + Math.min(count, 1);
     }, 0);
   }, [filteredStudyCycle, activeBattleCompletions]);
 
@@ -1399,7 +1399,7 @@ export default function App() {
     
     filteredStudyCycle.forEach(subject => {
       if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
-      stats[subject].total = 2; // Goal of 2 completions per cycle
+      stats[subject].total = 1; // Goal of 1 completion per cycle
       stats[subject].completed = activeBattleCompletions.filter(c => c.subject === subject).length;
     });
     return stats;
@@ -1407,7 +1407,7 @@ export default function App() {
 
   const dynamicBattleTable = useMemo(() => {
     return filteredStudyCycle.map(subject => {
-      const stats = battleStats[subject] || { completed: 0, total: 2 };
+      const stats = battleStats[subject] || { completed: 0, total: 1 };
       const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
       return {
         subject,
@@ -1441,17 +1441,17 @@ export default function App() {
       }
     }
 
-    // 2. Check Battle Reset (All subjects in filteredStudyCycle have at least 2 completions since lastBattleResetAt)
+    // 2. Check Battle Reset (All subjects in filteredStudyCycle have at least 1 completion since lastBattleResetAt)
     if (filteredStudyCycle.length > 0) {
       const allBattleSubjectsReachedGoal = filteredStudyCycle.every(subject => {
           const count = activeBattleCompletions.filter(c => c.subject === subject).length;
-          return count >= 2;
+          return count >= 1;
       });
 
       if (allBattleSubjectsReachedGoal) {
         const timer = setTimeout(() => {
           setLastBattleResetAt(new Date().toISOString());
-          addToast("⚔️ Tabela de Batalha Resetada! Todos os objetivos 2/2 alcançados!", "success");
+          addToast("⚔️ Tabela de Batalha Resetada! Todos os objetivos 1/1 alcançados!", "success");
         }, 1500);
         return () => clearTimeout(timer);
       }
