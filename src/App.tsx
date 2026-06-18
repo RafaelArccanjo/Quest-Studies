@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Zap, Sword, Cpu, LogOut, FileText, PenTool, 
   CheckSquare, Square, TrendingUp, Calendar, CircleDashed, ShieldAlert, Plus, Minus, X, Eye, Trash2, Settings,
-  Database, FileJson, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2, RefreshCw, Terminal, Rocket
+  Database, FileJson, Sparkles, Timer, History, RotateCcw, Play, Pause, SkipForward, Flame, Coffee, CheckCircle2, RefreshCw, Terminal, Rocket,
+  Shield, Coins, BookOpen
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from './supabase';
@@ -27,8 +28,8 @@ const DEFAULT_STUDY_CYCLE = [
   'Direito Administrativo',
   'Língua Portuguesa e Redação Oficial',
   'Direitos Humanos e Tratamento Penal',
-  'Direito Penal',
-  'Administração Pública',
+  'Direito Penal e Processo Penal',
+  'Legislação Específica',
   'Direito Constitucional',
   'Ética Profissional',
   'Informática',
@@ -42,8 +43,8 @@ const commandProtocol = [
   { subject: 'Direito Administrativo', compliance: '0/0', progress: 0 },
   { subject: 'Língua Portuguesa e Redação Oficial', compliance: '0/0', progress: 0 },
   { subject: 'Direitos Humanos e Tratamento Penal', compliance: '0/0', progress: 0 },
-  { subject: 'Direito Penal', compliance: '0/0', progress: 0 },
-  { subject: 'Administração Pública', compliance: '0/0', progress: 0 },
+  { subject: 'Direito Penal e Processo Penal', compliance: '0/0', progress: 0 },
+  { subject: 'Legislação Específica', compliance: '0/0', progress: 0 },
   { subject: 'Direito Constitucional', compliance: '0/0', progress: 0 },
   { subject: 'Ética Profissional', compliance: '0/0', progress: 0 },
   { subject: 'Informática', compliance: '0/0', progress: 0 },
@@ -59,12 +60,64 @@ const weeklyHistory = [
   { date: '02/03 - 08/03', cycles: '2/21 ciclos', progress: 10 },
 ];
 
+const migrateStudyCycle = (cycle: string[]): string[] => {
+  if (!Array.isArray(cycle)) return cycle;
+  let updatedCycle = [...cycle].filter(s => s !== 'Administração Pública');
+  const penalIdx = updatedCycle.indexOf('Direito Penal');
+  if (penalIdx !== -1) {
+    updatedCycle[penalIdx] = 'Direito Penal e Processo Penal';
+  }
+  const oldPenalIdx = updatedCycle.indexOf('Direito Penal e processo penal');
+  if (oldPenalIdx !== -1) {
+    updatedCycle[oldPenalIdx] = 'Direito Penal e Processo Penal';
+  }
+  if (!updatedCycle.includes('Legislação Específica')) {
+    const refIdx = updatedCycle.indexOf('Direito Penal e Processo Penal');
+    if (refIdx !== -1) {
+      updatedCycle.splice(refIdx + 1, 0, 'Legislação Específica');
+    } else {
+      updatedCycle.push('Legislação Específica');
+    }
+  }
+  return updatedCycle;
+};
+
+const migrateReviewSubjects = (rev: Record<string, boolean> | null | undefined): Record<string, boolean> => {
+  if (!rev || typeof rev !== 'object') return {};
+  const updated = { ...rev };
+  if (updated['Direito Penal'] !== undefined) {
+    updated['Direito Penal e Processo Penal'] = updated['Direito Penal'];
+    delete updated['Direito Penal'];
+  }
+  if (updated['Direito Penal e processo penal'] !== undefined) {
+    updated['Direito Penal e Processo Penal'] = updated['Direito Penal e processo penal'];
+    delete updated['Direito Penal e processo penal'];
+  }
+  delete updated['Administração Pública'];
+  return updated;
+};
+
+const migrateSubjectNotes = (notes: Record<string, string> | null | undefined): Record<string, string> => {
+  if (!notes || typeof notes !== 'object') return {};
+  const updated = { ...notes };
+  if (updated['Direito Penal'] !== undefined) {
+    updated['Direito Penal e Processo Penal'] = updated['Direito Penal'];
+    delete updated['Direito Penal'];
+  }
+  if (updated['Direito Penal e processo penal'] !== undefined) {
+    updated['Direito Penal e Processo Penal'] = updated['Direito Penal e processo penal'];
+    delete updated['Direito Penal e processo penal'];
+  }
+  delete updated['Administração Pública'];
+  return updated;
+};
+
 const subjectTasks: Record<string, { id: string, title: string }[]> = {
   'Língua Portuguesa e Redação Oficial': [],
   'Direitos Humanos e Tratamento Penal': [],
   'Direito Administrativo': [],
-  'Direito Penal': [],
-  'Administração Pública': [],
+  'Direito Penal e Processo Penal': [],
+  'Legislação Específica': [],
   'Direito Constitucional': [],
   'Ética Profissional': [],
   'Informática': [],
@@ -263,6 +316,19 @@ const StarRain = () => {
   );
 };
 
+const BANCARIA_SUBJECTS = ['Matemática', 'Informática', 'Conhecimentos Bancários', 'Vendas e Negociação'];
+
+const isSubjectInConcurso = (subject: string, concurso: 'policia' | 'bancaria' | 'ambos') => {
+  if (concurso === 'ambos') return true;
+  
+  // Língua Portuguesa e Redação Oficial serves both concursos
+  if (subject === 'Língua Portuguesa e Redação Oficial') return true;
+  
+  const isBancaria = BANCARIA_SUBJECTS.includes(subject);
+  if (concurso === 'bancaria') return isBancaria;
+  return !isBancaria; // policia includes all other subjects
+};
+
 // --- MAIN APP ---
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -271,18 +337,37 @@ export default function App() {
 
   const isInitialSettingsLoadDone = useRef(false);
 
+  const [selectedConcurso, setSelectedConcurso] = useState<'policia' | 'bancaria' | 'ambos'>(() => {
+    const saved = localStorage.getItem('selectedConcurso');
+    return (saved as 'policia' | 'bancaria' | 'ambos') || 'ambos';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('selectedConcurso', selectedConcurso);
+  }, [selectedConcurso]);
+
   const [studyCycle, setStudyCycle] = useState<string[]>(DEFAULT_STUDY_CYCLE);
 
+  const filteredStudyCycle = useMemo(() => {
+    return studyCycle.filter(s => isSubjectInConcurso(s, selectedConcurso));
+  }, [studyCycle, selectedConcurso]);
+
   const moveSubject = (index: number, direction: 'left' | 'right') => {
-    const newCycle = [...studyCycle];
-    const newIndex = direction === 'left' ? index - 1 : index + 1;
-    
-    if (newIndex >= 0 && newIndex < newCycle.length) {
-      const temp = newCycle[index];
-      newCycle[index] = newCycle[newIndex];
-      newCycle[newIndex] = temp;
-      setStudyCycle(newCycle);
-      addToast(`Matéria movida para ${direction === 'left' ? 'esquerda' : 'direita'}`, "success");
+    const filtered = studyCycle.filter(s => isSubjectInConcurso(s, selectedConcurso));
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < filtered.length) {
+      const itemA = filtered[index];
+      const itemB = filtered[targetIndex];
+      
+      const newCycle = [...studyCycle];
+      const idxA = newCycle.indexOf(itemA);
+      const idxB = newCycle.indexOf(itemB);
+      if (idxA !== -1 && idxB !== -1) {
+        newCycle[idxA] = itemB;
+        newCycle[idxB] = itemA;
+        setStudyCycle(newCycle);
+        addToast(`Matéria movida para ${direction === 'left' ? 'esquerda' : 'direita'}`, "success");
+      }
     }
   };
 
@@ -487,7 +572,7 @@ export default function App() {
   }, []);
 
   const completedSubjects = useMemo(() => {
-    return studyCycle.filter(subject => {
+    return filteredStudyCycle.filter(subject => {
       // A subject is completed if it has been finished 2 times in the current week
       let count = 0;
       weekDates.forEach(date => {
@@ -495,11 +580,11 @@ export default function App() {
       });
       return count >= 2;
     });
-  }, [completions, studyCycle, weekDates]);
+  }, [completions, filteredStudyCycle, weekDates]);
 
   const activeStudyCycle = useMemo(() => {
-    return studyCycle.filter(subject => !completedSubjects.includes(subject) || reviewSubjects[subject]);
-  }, [completedSubjects, studyCycle, reviewSubjects]);
+    return filteredStudyCycle.filter(subject => !completedSubjects.includes(subject) || reviewSubjects[subject]);
+  }, [completedSubjects, filteredStudyCycle, reviewSubjects]);
 
   const cycleSubjects = activeStudyCycle;
 
@@ -737,9 +822,15 @@ export default function App() {
       }
       
       if (data) {
-        setRawCompletions(data);
+        const mappedData = data.filter(item => item.subject !== 'Administração Pública').map(item => {
+          if (item.subject === 'Direito Penal' || item.subject === 'Direito Penal e processo penal') {
+            return { ...item, subject: 'Direito Penal e Processo Penal' };
+          }
+          return item;
+        });
+        setRawCompletions(mappedData);
         const newCompletions: Record<string, boolean> = {};
-        data.forEach(item => {
+        mappedData.forEach(item => {
           newCompletions[`${item.date}_${item.subject}`] = true;
         });
         setCompletions(newCompletions);
@@ -770,8 +861,11 @@ export default function App() {
       
       if (data) {
         const newTaskCompletions: Record<string, boolean> = {};
-        data.forEach(item => {
-          newTaskCompletions[`${item.subject}_${item.task_id}`] = true;
+        data.filter(item => item.subject !== 'Administração Pública').forEach(item => {
+          const subject = (item.subject === 'Direito Penal' || item.subject === 'Direito Penal e processo penal') 
+            ? 'Direito Penal e Processo Penal' 
+            : item.subject;
+          newTaskCompletions[`${subject}_${item.task_id}`] = true;
         });
         setTaskCompletions(newTaskCompletions);
       }
@@ -941,13 +1035,13 @@ export default function App() {
         
         if (data) {
           if (data.study_cycle && Array.isArray(data.study_cycle) && data.study_cycle.length > 0) {
-            setStudyCycle(data.study_cycle);
+            setStudyCycle(migrateStudyCycle(data.study_cycle));
           }
           if (data.review_subjects) {
-            setReviewSubjects(data.review_subjects);
+            setReviewSubjects(migrateReviewSubjects(data.review_subjects));
           }
           if (data.subject_notes) {
-            setSubjectNotes(data.subject_notes);
+            setSubjectNotes(migrateSubjectNotes(data.subject_notes));
           }
           if (data.completed_cycles !== undefined) setCompletedCycles(data.completed_cycles);
           if (data.studied_minutes !== undefined) setStudiedMinutes(data.studied_minutes);
@@ -1019,9 +1113,9 @@ export default function App() {
           if (localStudyCycle || localReviewSubjects || localSubjectNotes || localCompletedCycles || localStudiedMinutes || localDoubleCount || localCycleHistory || localStudyMin || localBreakMin || localCompletions || localTaskCompletions) {
             const settingsToSave: any = {
               user_id: user.id,
-              study_cycle: localStudyCycle ? JSON.parse(localStudyCycle) : (data?.study_cycle || studyCycle),
-              review_subjects: localReviewSubjects ? JSON.parse(localReviewSubjects) : (data?.review_subjects || reviewSubjects),
-              subject_notes: localSubjectNotes ? JSON.parse(localSubjectNotes) : (data?.subject_notes || subjectNotes),
+              study_cycle: migrateStudyCycle(localStudyCycle ? JSON.parse(localStudyCycle) : (data?.study_cycle || studyCycle)),
+              review_subjects: migrateReviewSubjects(localReviewSubjects ? JSON.parse(localReviewSubjects) : (data?.review_subjects || reviewSubjects)),
+              subject_notes: migrateSubjectNotes(localSubjectNotes ? JSON.parse(localSubjectNotes) : (data?.subject_notes || subjectNotes)),
               completed_cycles: localCompletedCycles ? parseInt(localCompletedCycles) : (data?.completed_cycles || completedCycles),
               studied_minutes: localStudiedMinutes ? parseInt(localStudiedMinutes) : (data?.studied_minutes || studiedMinutes),
               double_count: localDoubleCount ? parseInt(localDoubleCount) : (data?.double_count || doubleCount),
@@ -1039,11 +1133,20 @@ export default function App() {
               if (localCompletions) {
                 try {
                   const parsedCompletions = JSON.parse(localCompletions);
-                  const completionsToInsert = Object.keys(parsedCompletions).map(key => {
-                    const [date, subject] = key.split('_');
-                    const docId = `${user.id}_${date}_${encodeURIComponent(subject)}`;
-                    return { id: docId, user_id: user.id, date, subject };
-                  });
+                  const completionsToInsert = Object.keys(parsedCompletions)
+                    .map(key => {
+                      const [date, originalSubject] = key.split('_');
+                      const subject = (originalSubject === 'Direito Penal' || originalSubject === 'Direito Penal e processo penal') 
+                        ? 'Direito Penal e Processo Penal' 
+                        : originalSubject;
+                      return { date, subject };
+                    })
+                    .filter(item => item.subject !== 'Administração Pública')
+                    .map(item => {
+                      const docId = `${user.id}_${item.date}_${encodeURIComponent(item.subject)}`;
+                      return { id: docId, user_id: user.id, date: item.date, subject: item.subject };
+                    });
+
                   if (completionsToInsert.length > 0) {
                     const { error } = await supabase.from('completions').upsert(completionsToInsert);
                     if (error) {
@@ -1061,11 +1164,20 @@ export default function App() {
               if (localTaskCompletions) {
                 try {
                   const parsedTaskCompletions = JSON.parse(localTaskCompletions);
-                  const tasksToInsert = Object.keys(parsedTaskCompletions).map(key => {
-                    const [subject, task_id] = key.split('_');
-                    const docId = `${user.id}_${encodeURIComponent(subject)}_${task_id}`;
-                    return { id: docId, user_id: user.id, subject, task_id };
-                  });
+                  const tasksToInsert = Object.keys(parsedTaskCompletions)
+                    .map(key => {
+                      const [originalSubject, task_id] = key.split('_');
+                      const subject = (originalSubject === 'Direito Penal' || originalSubject === 'Direito Penal e processo penal') 
+                        ? 'Direito Penal e Processo Penal' 
+                        : originalSubject;
+                      return { subject, task_id };
+                    })
+                    .filter(item => item.subject !== 'Administração Pública')
+                    .map(item => {
+                      const docId = `${user.id}_${encodeURIComponent(item.subject)}_${item.task_id}`;
+                      return { id: docId, user_id: user.id, subject: item.subject, task_id: item.task_id };
+                    });
+
                   if (tasksToInsert.length > 0) {
                     const { error } = await supabase.from('task_completions').upsert(tasksToInsert);
                     if (error) {
@@ -1080,9 +1192,9 @@ export default function App() {
               }
 
               if (migrationSuccess) {
-                if (localStudyCycle) setStudyCycle(JSON.parse(localStudyCycle));
-                if (localReviewSubjects) setReviewSubjects(JSON.parse(localReviewSubjects));
-                if (localSubjectNotes) setSubjectNotes(JSON.parse(localSubjectNotes));
+                if (localStudyCycle) setStudyCycle(migrateStudyCycle(JSON.parse(localStudyCycle)));
+                if (localReviewSubjects) setReviewSubjects(migrateReviewSubjects(JSON.parse(localReviewSubjects)));
+                if (localSubjectNotes) setSubjectNotes(migrateSubjectNotes(JSON.parse(localSubjectNotes)));
                 if (localCompletedCycles) setCompletedCycles(parseInt(localCompletedCycles));
                 if (localStudiedMinutes) setStudiedMinutes(parseInt(localStudiedMinutes));
                 if (localDoubleCount) setDoubleCount(parseInt(localDoubleCount));
@@ -1161,16 +1273,16 @@ export default function App() {
   }, [weekDates, completions]);
 
   const currentWeekCycles = useMemo(() => {
-    return studyCycle.reduce((acc, subject) => {
+    return filteredStudyCycle.reduce((acc, subject) => {
       let count = 0;
       weekDates.forEach(date => {
         if (completions[`${date}_${subject}`]) count++;
       });
       return acc + Math.min(count, 2);
     }, 0);
-  }, [weekDates, completions, studyCycle]);
+  }, [weekDates, completions, filteredStudyCycle]);
 
-  const totalWeeklyCycles = useMemo(() => studyCycle.length * 2, [studyCycle]);
+  const totalWeeklyCycles = useMemo(() => filteredStudyCycle.length * 2, [filteredStudyCycle]);
   
   const currentWeekProgress = useMemo(() => {
     return totalWeeklyCycles > 0 ? Math.round((currentWeekCycles / totalWeeklyCycles) * 100) : 0;
@@ -1215,7 +1327,7 @@ export default function App() {
     const missions: { subject: string; time: string; completed: boolean }[] = [];
     let count = 0;
     
-    for (const subject of studyCycle) {
+    for (const subject of filteredStudyCycle) {
       if (count >= dailyMissionsLimit) break;
       const isCompletedInCycle = activeCycleCompletions.some(c => c.subject === subject);
       const isLongTermCompleted = completedSubjects.includes(subject);
@@ -1231,14 +1343,14 @@ export default function App() {
     }
     
     return missions;
-  }, [activeCycleCompletions, completedSubjects, studyCycle, dailyMissionsLimit]);
+  }, [activeCycleCompletions, completedSubjects, filteredStudyCycle, dailyMissionsLimit]);
 
   const totalBattleCompletions = useMemo(() => {
-    return studyCycle.reduce((acc, subject) => {
+    return filteredStudyCycle.reduce((acc, subject) => {
       const count = activeBattleCompletions.filter(c => c.subject === subject).length;
       return acc + Math.min(count, 2);
     }, 0);
-  }, [studyCycle, activeBattleCompletions]);
+  }, [filteredStudyCycle, activeBattleCompletions]);
 
   const completedMissions = totalBattleCompletions;
   const totalMissions = totalWeeklyCycles;
@@ -1250,33 +1362,34 @@ export default function App() {
   const battleStats = useMemo(() => {
     const stats: Record<string, { total: number, completed: number }> = {};
     
-    studyCycle.forEach(subject => {
+    filteredStudyCycle.forEach(subject => {
       if (!stats[subject]) stats[subject] = { total: 0, completed: 0 };
       stats[subject].total = 2; // Goal of 2 completions per cycle
       stats[subject].completed = activeBattleCompletions.filter(c => c.subject === subject).length;
     });
     return stats;
-  }, [activeBattleCompletions, studyCycle]);
+  }, [activeBattleCompletions, filteredStudyCycle]);
 
   const dynamicBattleTable = useMemo(() => {
-    return studyCycle.map(subject => {
+    return filteredStudyCycle.map(subject => {
       const stats = battleStats[subject] || { completed: 0, total: 2 };
       const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
       return {
         subject,
         conquest: `${stats.completed}/${stats.total}`,
+        compliance: `${stats.completed}/${stats.total}`,
         progress
       };
     });
-  }, [battleStats, studyCycle]);
+  }, [battleStats, filteredStudyCycle]);
 
   // Automatic Reset Logic
   useEffect(() => {
     if (!isInitialSettingsLoadDone.current || rawCompletions.length === 0) return;
 
-    // 1. Check Cycle Reset (All subjects in studyCycle have at least 1 completion since lastCycleResetAt)
+    // 1. Check Cycle Reset (All subjects in filteredStudyCycle have at least 1 completion since lastCycleResetAt)
     // Only count subjects that are NOT marked as "long term completed" (concluídas)
-    const activeSubjects = studyCycle.filter(s => !completedSubjects.includes(s));
+    const activeSubjects = filteredStudyCycle.filter(s => !completedSubjects.includes(s));
     
     if (activeSubjects.length > 0) {
       const allCycleSubjectsCompleted = activeSubjects.every(subject => 
@@ -1293,9 +1406,9 @@ export default function App() {
       }
     }
 
-    // 2. Check Battle Reset (All subjects in studyCycle have at least 2 completions since lastBattleResetAt)
-    if (studyCycle.length > 0) {
-      const allBattleSubjectsReachedGoal = studyCycle.every(subject => {
+    // 2. Check Battle Reset (All subjects in filteredStudyCycle have at least 2 completions since lastBattleResetAt)
+    if (filteredStudyCycle.length > 0) {
+      const allBattleSubjectsReachedGoal = filteredStudyCycle.every(subject => {
           const count = activeBattleCompletions.filter(c => c.subject === subject).length;
           return count >= 2;
       });
@@ -1308,7 +1421,7 @@ export default function App() {
         return () => clearTimeout(timer);
       }
     }
-  }, [activeCycleCompletions, activeBattleCompletions, studyCycle, completedSubjects, lastCycleResetAt, lastBattleResetAt]);
+  }, [activeCycleCompletions, activeBattleCompletions, filteredStudyCycle, completedSubjects, lastCycleResetAt, lastBattleResetAt]);
 
   const completedSubjectsData = useMemo(() => {
     return completedSubjects.map(subject => {
@@ -2156,6 +2269,60 @@ export default function App() {
         className="max-w-6xl mx-auto space-y-8"
       >
         
+        {/* SELETOR DE FOCO / CONCURSO */}
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-quest-panel border border-quest-gold/20 p-4 rounded-sm gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.5)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-quest-gold/40" />
+          <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-quest-gold/40" />
+          <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-quest-gold/40" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-quest-gold/40" />
+          
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-quest-gold/10 border border-quest-gold/30 flex items-center justify-center">
+              <BookOpen size={16} className="text-quest-gold" />
+            </div>
+            <div>
+              <span className="text-xs text-quest-gold-dark font-serif tracking-widest uppercase block">Foco de Estudo</span>
+              <span className="text-[10px] text-quest-text-muted font-mono uppercase">Separe ou unifique os ciclos de estudos de concursos</span>
+            </div>
+          </div>
+
+          <div className="flex bg-black/40 border border-quest-gold-dark/20 p-1 rounded-sm w-full sm:w-auto">
+            <button
+              onClick={() => setSelectedConcurso('policia')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-serif uppercase tracking-wider transition-all rounded-sm ${
+                selectedConcurso === 'policia'
+                  ? 'bg-quest-gold/20 text-quest-gold border border-quest-gold/40 shadow-[0_0_10px_rgba(184,155,94,0.15)]'
+                  : 'text-quest-text-muted hover:text-quest-gold hover:bg-quest-gold/5'
+              }`}
+            >
+              <Shield size={12} />
+              Polícia Penal
+            </button>
+            <button
+              onClick={() => setSelectedConcurso('bancaria')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-serif uppercase tracking-wider transition-all rounded-sm ${
+                selectedConcurso === 'bancaria'
+                  ? 'bg-quest-gold/20 text-quest-gold border border-quest-gold/40 shadow-[0_0_10px_rgba(184,155,94,0.15)]'
+                  : 'text-quest-text-muted hover:text-quest-gold hover:bg-quest-gold/5'
+              }`}
+            >
+              <Coins size={12} />
+              Área Bancária
+            </button>
+            <button
+              onClick={() => setSelectedConcurso('ambos')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-serif uppercase tracking-wider transition-all rounded-sm ${
+                selectedConcurso === 'ambos'
+                  ? 'bg-quest-gold/20 text-quest-gold border border-quest-gold/40 shadow-[0_0_10px_rgba(184,155,94,0.15)]'
+                  : 'text-quest-text-muted hover:text-quest-gold hover:bg-quest-gold/5'
+              }`}
+            >
+              <BookOpen size={12} />
+              Ambos (Completo)
+            </button>
+          </div>
+        </div>
+        
         {activeTab === 'dashboard' && (
           <>
             {/* TOP STATS */}
@@ -2293,7 +2460,7 @@ export default function App() {
               </button>
             </div>
             <div className="flex flex-wrap justify-center gap-8 py-4 relative">
-              {studyCycle.map((subject, idx) => {
+              {filteredStudyCycle.map((subject, idx) => {
                 const isCheckedInCycle = activeCycleCompletions.some(c => c.subject === subject);
                 const isLongTermCompleted = completedSubjects.includes(subject);
                 const isNextToStudy = todaysMissions.some(m => m.subject === subject && !m.completed);
@@ -2319,7 +2486,7 @@ export default function App() {
                         <SkipForward size={12} className="rotate-180" />
                       </button>
                       <button 
-                        disabled={idx === studyCycle.length - 1}
+                        disabled={idx === filteredStudyCycle.length - 1}
                         onClick={(e) => {
                           e.stopPropagation();
                           moveSubject(idx, 'right');
@@ -2422,7 +2589,7 @@ export default function App() {
                     </div>
 
                     {/* Connector line (Sharp) */}
-                    {idx < studyCycle.length - 1 && (
+                    {idx < filteredStudyCycle.length - 1 && (
                       <div className="hidden lg:block absolute -right-8 top-10 w-8 h-[2px] bg-gradient-to-r from-quest-gold-dark/40 to-transparent"></div>
                     )}
                   </motion.div>
