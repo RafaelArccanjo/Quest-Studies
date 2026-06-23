@@ -1366,7 +1366,9 @@ export default function App() {
       const isCompletedInCycle = activeCycleCompletions.some(c => c.subject === subject);
       const isLongTermCompleted = completedSubjects.includes(subject);
       
-      if (!isLongTermCompleted) {
+      // We show the subject if it's not 100% completed (vencida),
+      // OR if it is 100% completed but has a completion in the current cycle (allowing the user to uncheck/revert it!)
+      if (!isLongTermCompleted || isCompletedInCycle) {
         missions.push({
           subject,
           time: '1h',
@@ -1417,45 +1419,22 @@ export default function App() {
     });
   }, [battleStats, filteredStudyCycle]);
 
-  // Automatic Reset Logic
-  useEffect(() => {
-    if (!isInitialSettingsLoadDone.current || rawCompletions.length === 0) return;
-
-    // 1. Check Cycle Reset (All subjects in filteredStudyCycle have at least 1 completion since lastCycleResetAt)
-    // Only count subjects that are NOT marked as "long term completed" (concluídas)
+  // Memoized check if the cycle is completed (all active subjects have at least 1 completion since lastCycleResetAt)
+  const allCycleSubjectsCompleted = useMemo(() => {
     const activeSubjects = filteredStudyCycle.filter(s => !completedSubjects.includes(s));
-    
-    if (activeSubjects.length > 0) {
-      const allCycleSubjectsCompleted = activeSubjects.every(subject => 
-        activeCycleCompletions.some(c => c.subject === subject)
-      );
+    if (activeSubjects.length === 0) return false;
+    return activeSubjects.every(subject => 
+      activeCycleCompletions.some(c => c.subject === subject)
+    );
+  }, [filteredStudyCycle, completedSubjects, activeCycleCompletions]);
 
-      if (allCycleSubjectsCompleted) {
-        // Small delay to let the user see the last checkmark
-        const timer = setTimeout(() => {
-          setLastCycleResetAt(new Date().toISOString());
-          addToast("🔥 Ciclo Completo! Reiniciando jornada...", "success");
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-
-    // 2. Check Battle Reset (All subjects in filteredStudyCycle have at least 1 completion since lastBattleResetAt)
-    if (filteredStudyCycle.length > 0) {
-      const allBattleSubjectsReachedGoal = filteredStudyCycle.every(subject => {
-          const count = activeBattleCompletions.filter(c => c.subject === subject).length;
-          return count >= 1;
-      });
-
-      if (allBattleSubjectsReachedGoal) {
-        const timer = setTimeout(() => {
-          setLastBattleResetAt(new Date().toISOString());
-          addToast("⚔️ Tabela de Batalha Resetada! Todos os objetivos 1/1 alcançados!", "success");
-        }, 1500);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [activeCycleCompletions, activeBattleCompletions, filteredStudyCycle, completedSubjects, lastCycleResetAt, lastBattleResetAt]);
+  // Manual Reset Handler
+  const handleComecarOutraRodada = () => {
+    const now = new Date().toISOString();
+    setLastCycleResetAt(now);
+    setLastBattleResetAt(now);
+    addToast("⚔️ Nova rodada iniciada! Bons estudos!", "success");
+  };
 
   const completedSubjectsData = useMemo(() => {
     return completedSubjects.map(subject => {
@@ -2405,6 +2384,23 @@ export default function App() {
         <Panel>
           <PanelHeader title="PERGAMINHO DE MISSÕES (CICLO ATUAL)" />
           <div className="p-2">
+            {allCycleSubjectsCompleted && (
+              <div className="mx-4 my-3 p-4 bg-quest-gold/10 border border-quest-gold/30 rounded-lg text-center flex flex-col items-center gap-3 shadow-[0_0_15px_rgba(184,155,94,0.15)] animate-fade-in relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-quest-gold/5 via-transparent to-quest-gold/5 pointer-events-none" />
+                <p className="font-serif text-quest-gold text-lg tracking-[0.15em] uppercase flex items-center gap-2 font-bold relative z-10">
+                  🏆 CICLO CONCLUÍDO!
+                </p>
+                <p className="text-xs text-quest-text-muted relative z-10">
+                  Você completou todas as disciplinas desta rodada do ciclo de estudos.
+                </p>
+                <button
+                  onClick={handleComecarOutraRodada}
+                  className="medieval-button flex items-center justify-center gap-2 py-2 px-6 text-xs font-bold uppercase tracking-[0.1em] cursor-pointer shadow-[0_0_10px_rgba(184,155,94,0.2)] hover:shadow-[0_0_20px_rgba(184,155,94,0.4)] transition-all relative z-10"
+                >
+                  Começar outra rodada
+                </button>
+              </div>
+            )}
             <div className="flex justify-end px-4 py-2">
               <button 
                 onClick={() => setDailyMissionsLimit(prev => prev === 3 ? 4 : 3)}
@@ -2651,6 +2647,23 @@ export default function App() {
           </h2>
           <Panel>
             <PanelHeader title="UNIDADES — STATUS DE SINCRONIA" />
+            {allCycleSubjectsCompleted && (
+              <div className="mx-4 my-3 p-4 bg-quest-gold/10 border border-quest-gold/30 rounded-lg text-center flex flex-col items-center gap-3 shadow-[0_0_15px_rgba(184,155,94,0.15)] animate-fade-in relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-quest-gold/5 via-transparent to-quest-gold/5 pointer-events-none" />
+                <p className="font-serif text-quest-gold text-lg tracking-[0.15em] uppercase flex items-center gap-2 font-bold relative z-10">
+                  🏆 CICLO CONCLUÍDO!
+                </p>
+                <p className="text-xs text-quest-text-muted relative z-10">
+                  Você completou todas as disciplinas desta rodada do ciclo de estudos.
+                </p>
+                <button
+                  onClick={handleComecarOutraRodada}
+                  className="medieval-button flex items-center justify-center gap-2 py-2 px-6 text-xs font-bold uppercase tracking-[0.1em] cursor-pointer shadow-[0_0_10px_rgba(184,155,94,0.2)] hover:shadow-[0_0_20px_rgba(184,155,94,0.4)] transition-all relative z-10"
+                >
+                  Começar outra rodada
+                </button>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left border-collapse">
                 <thead>
