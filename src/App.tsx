@@ -605,16 +605,31 @@ export default function App() {
     return dates;
   }, []);
 
+  const activeCycleCompletions = useMemo(() => {
+    return rawCompletions.filter(c => {
+      // Fallback for missing created_at: use the 'date' field
+      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
+      if (!lastCycleResetAt || lastCycleResetAt === '2000-01-01T00:00:00Z') return true;
+      return cDate.getTime() > new Date(lastCycleResetAt).getTime();
+    });
+  }, [rawCompletions, lastCycleResetAt]);
+
+  const activeBattleCompletions = useMemo(() => {
+    return rawCompletions.filter(c => {
+      // Fallback for missing created_at: use the 'date' field
+      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
+      if (!lastBattleResetAt || lastBattleResetAt === '2000-01-01T00:00:00Z') return true;
+      return cDate.getTime() > new Date(lastBattleResetAt).getTime();
+    });
+  }, [rawCompletions, lastBattleResetAt]);
+
   const completedSubjects = useMemo(() => {
     return filteredStudyCycle.filter(subject => {
-      // A subject is completed if it has been finished 2 times in the current week
-      let count = 0;
-      weekDates.forEach(date => {
-        if (completions[`${date}_${subject}`]) count++;
-      });
+      // A subject is completed if it has been finished 2 times in the active cycle
+      const count = activeCycleCompletions.filter(c => c.subject === subject).length;
       return count >= 2;
     });
-  }, [completions, filteredStudyCycle, weekDates]);
+  }, [activeCycleCompletions, filteredStudyCycle]);
 
   const activeStudyCycle = useMemo(() => {
     return filteredStudyCycle.filter(subject => !completedSubjects.includes(subject) || reviewSubjects[subject]);
@@ -693,7 +708,7 @@ export default function App() {
   };
 
   const resetCycle = () => {
-    if (window.confirm("Deseja realmente reiniciar o ciclo? Isso zerará todos os contadores.")) {
+    if (window.confirm("Deseja realmente reiniciar o ciclo? Isso zerará todos os contadores e desmarcará as matérias estudadas.")) {
       setCompletedCycles(0);
       setStudiedMinutes(0);
       setDoubleCount(0);
@@ -704,7 +719,12 @@ export default function App() {
       setCurrentCycleIdx(0);
       setDoublePending(false);
       setIsDouble(false);
-      addToast("🔄 Ciclo reiniciado!", "warning");
+      
+      const now = new Date().toISOString();
+      setLastCycleResetAt(now);
+      setLastBattleResetAt(now);
+      
+      addToast("🔄 Ciclo reiniciado e matérias desmarcadas!", "warning");
     }
   };
 
@@ -1337,24 +1357,6 @@ export default function App() {
       ...weeklyHistory.map(w => ({ ...w, flashcards: 0 }))
     ];
   }, [currentWeekLabel, currentWeekCycles, totalWeeklyCycles, currentWeekProgress, currentWeekFlashcards]);
-
-  const activeCycleCompletions = useMemo(() => {
-    return rawCompletions.filter(c => {
-      // Fallback for missing created_at: use the 'date' field
-      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
-      if (!lastCycleResetAt || lastCycleResetAt === '2000-01-01T00:00:00Z') return true;
-      return cDate.getTime() > new Date(lastCycleResetAt).getTime();
-    });
-  }, [rawCompletions, lastCycleResetAt]);
-
-  const activeBattleCompletions = useMemo(() => {
-    return rawCompletions.filter(c => {
-      // Fallback for missing created_at: use the 'date' field
-      const cDate = c.created_at ? new Date(c.created_at) : new Date(c.date + 'T12:00:00Z');
-      if (!lastBattleResetAt || lastBattleResetAt === '2000-01-01T00:00:00Z') return true;
-      return cDate.getTime() > new Date(lastBattleResetAt).getTime();
-    });
-  }, [rawCompletions, lastBattleResetAt]);
 
   const todaysMissions = useMemo(() => {
     // Find subjects not completed in the current cycle
