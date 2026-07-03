@@ -25,35 +25,25 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 // --- REUSABLE COMPONENTS ---
 const DEFAULT_STUDY_CYCLE = [
-  'Direito Administrativo',
   'Língua Portuguesa e Redação Oficial',
-  'Direitos Humanos e Tratamento Penal',
-  'Direito Penal e Processo Penal',
-  'Legislação Específica',
-  'Direito Constitucional',
-  'Ética Profissional',
   'Informática',
-  'Lei de Execução Penal',
   'Vendas e Negociação',
   'Conhecimentos Bancários',
   'Matemática',
-  'Segurança do Trabalho'
+  'Segurança do Trabalho',
+  'Matemática Financeira',
+  'Inglês'
 ];
 
 const commandProtocol = [
-  { subject: 'Direito Administrativo', compliance: '0/0', progress: 0 },
   { subject: 'Língua Portuguesa e Redação Oficial', compliance: '0/0', progress: 0 },
-  { subject: 'Direitos Humanos e Tratamento Penal', compliance: '0/0', progress: 0 },
-  { subject: 'Direito Penal e Processo Penal', compliance: '0/0', progress: 0 },
-  { subject: 'Legislação Específica', compliance: '0/0', progress: 0 },
-  { subject: 'Direito Constitucional', compliance: '0/0', progress: 0 },
-  { subject: 'Ética Profissional', compliance: '0/0', progress: 0 },
   { subject: 'Informática', compliance: '0/0', progress: 0 },
-  { subject: 'Lei de Execução Penal', compliance: '0/0', progress: 0 },
   { subject: 'Vendas e Negociação', compliance: '0/40', progress: 0 },
   { subject: 'Conhecimentos Bancários', compliance: '0/48', progress: 0 },
   { subject: 'Matemática', compliance: '0/0', progress: 0 },
   { subject: 'Segurança do Trabalho', compliance: '0/0', progress: 0 },
+  { subject: 'Matemática Financeira', compliance: '0/0', progress: 0 },
+  { subject: 'Inglês', compliance: '0/0', progress: 0 },
 ];
 
 const weeklyHistory = [
@@ -64,30 +54,24 @@ const weeklyHistory = [
 
 const migrateStudyCycle = (cycle: string[]): string[] => {
   if (!Array.isArray(cycle)) return cycle;
-  let updatedCycle = [...cycle].filter(s => s !== 'Administração Pública');
-  const penalIdx = updatedCycle.indexOf('Direito Penal');
-  if (penalIdx !== -1) {
-    updatedCycle[penalIdx] = 'Direito Penal e Processo Penal';
-  }
-  const oldPenalIdx = updatedCycle.indexOf('Direito Penal e processo penal');
-  if (oldPenalIdx !== -1) {
-    updatedCycle[oldPenalIdx] = 'Direito Penal e Processo Penal';
-  }
-  if (!updatedCycle.includes('Legislação Específica')) {
-    const refIdx = updatedCycle.indexOf('Direito Penal e Processo Penal');
-    if (refIdx !== -1) {
-      updatedCycle.splice(refIdx + 1, 0, 'Legislação Específica');
-    } else {
-      updatedCycle.push('Legislação Específica');
-    }
-  }
+  
+  const subjectsToRemove = [
+    'Lei de Execução Penal',
+    'Direitos Humanos e Tratamento Penal',
+    'Legislação Específica',
+    'Ética Profissional',
+    'Direito Administrativo',
+    'Direito Penal e Processo Penal',
+    'Direito Penal',
+    'Direito Penal e processo penal',
+    'Direito Constitucional'
+  ];
+
+  let updatedCycle = [...cycle].filter(s => s !== 'Administração Pública' && !subjectsToRemove.includes(s));
 
   // Certifique-se de que todas as novas matérias do DEFAULT_STUDY_CYCLE estejam presentes no ciclo do usuário
   DEFAULT_STUDY_CYCLE.forEach(subject => {
     if (!updatedCycle.includes(subject)) {
-      if (subject === 'Direito Penal e Processo Penal' && (updatedCycle.includes('Direito Penal') || updatedCycle.includes('Direito Penal e processo penal'))) {
-        return;
-      }
       updatedCycle.push(subject);
     }
   });
@@ -127,16 +111,11 @@ const migrateSubjectNotes = (notes: Record<string, string> | null | undefined): 
 
 const subjectTasks: Record<string, { id: string, title: string }[]> = {
   'Língua Portuguesa e Redação Oficial': [],
-  'Direitos Humanos e Tratamento Penal': [],
-  'Direito Administrativo': [],
-  'Direito Penal e Processo Penal': [],
-  'Legislação Específica': [],
-  'Direito Constitucional': [],
-  'Ética Profissional': [],
   'Informática': [],
-  'Lei de Execução Penal': [],
   'Matemática': [],
   'Segurança do Trabalho': [],
+  'Matemática Financeira': [],
+  'Inglês': [],
   'Conhecimentos Bancários': [
     { id: 'cb_1', title: 'Dia 1: TAREFA 1 – Estudo da Aula 00 (toda a teoria) + resolver 12 questões' },
     { id: 'cb_2', title: 'Dia 2: TAREFA 2 – Revisão da Aula 00 + resolver questões 13 a 43' },
@@ -330,23 +309,14 @@ const StarRain = () => {
   );
 };
 
-const POLICIA_SUBJECTS = [
-  'Direito Administrativo',
-  'Língua Portuguesa e Redação Oficial',
-  'Direitos Humanos e Tratamento Penal',
-  'Direito Penal e Processo Penal',
-  'Legislação Específica',
-  'Direito Constitucional',
-  'Ética Profissional',
-  'Lei de Execução Penal'
-];
-
 const BANCARIA_SUBJECTS = [
   'Língua Portuguesa e Redação Oficial',
   'Matemática',
   'Informática',
   'Conhecimentos Bancários',
-  'Vendas e Negociação'
+  'Vendas e Negociação',
+  'Matemática Financeira',
+  'Inglês'
 ];
 
 const PETROBRAS_SUBJECTS = [
@@ -355,9 +325,8 @@ const PETROBRAS_SUBJECTS = [
   'Segurança do Trabalho'
 ];
 
-const isSubjectInConcurso = (subject: string, concurso: 'policia' | 'bancaria' | 'petrobras' | 'ambos') => {
+const isSubjectInConcurso = (subject: string, concurso: 'bancaria' | 'petrobras' | 'ambos') => {
   if (concurso === 'ambos') return true;
-  if (concurso === 'policia') return POLICIA_SUBJECTS.includes(subject);
   if (concurso === 'bancaria') return BANCARIA_SUBJECTS.includes(subject);
   if (concurso === 'petrobras') return PETROBRAS_SUBJECTS.includes(subject);
   return false;
@@ -371,9 +340,10 @@ export default function App() {
 
   const isInitialSettingsLoadDone = useRef(false);
 
-  const [selectedConcurso, setSelectedConcurso] = useState<'policia' | 'bancaria' | 'petrobras' | 'ambos'>(() => {
+  const [selectedConcurso, setSelectedConcurso] = useState<'bancaria' | 'petrobras' | 'ambos'>(() => {
     const saved = localStorage.getItem('selectedConcurso');
-    return (saved as 'policia' | 'bancaria' | 'petrobras' | 'ambos') || 'ambos';
+    if (saved === 'policia') return 'ambos';
+    return (saved as 'bancaria' | 'petrobras' | 'ambos') || 'ambos';
   });
 
   useEffect(() => {
@@ -2302,17 +2272,6 @@ export default function App() {
           </div>
 
           <div className="flex bg-black/40 border border-quest-gold-dark/20 p-1 rounded-sm w-full sm:w-auto flex-wrap gap-1 sm:gap-0">
-            <button
-              onClick={() => setSelectedConcurso('policia')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-serif uppercase tracking-wider transition-all rounded-sm ${
-                selectedConcurso === 'policia'
-                  ? 'bg-quest-gold/20 text-quest-gold border border-quest-gold/40 shadow-[0_0_10px_rgba(184,155,94,0.15)]'
-                  : 'text-quest-text-muted hover:text-quest-gold hover:bg-quest-gold/5'
-              }`}
-            >
-              <Shield size={12} />
-              Polícia Penal
-            </button>
             <button
               onClick={() => setSelectedConcurso('bancaria')}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-serif uppercase tracking-wider transition-all rounded-sm ${
