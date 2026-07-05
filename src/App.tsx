@@ -752,6 +752,7 @@ export default function App() {
   const [newRedacao, setNewRedacao] = useState({ theme: '', score: 0 });
   const [editingRedacao, setEditingRedacao] = useState<any | null>(null);
   const [selectedContestId, setSelectedContestId] = useState('bb');
+  const [chartContestId, setChartContestId] = useState<string>('all');
   const [dailyMissionsLimit, setDailyMissionsLimit] = useState(3);
   const [deletingSimuladoId, setDeletingSimuladoId] = useState<string | null>(null);
   const [deletingRedacaoId, setDeletingRedacaoId] = useState<string | null>(null);
@@ -783,24 +784,44 @@ export default function App() {
   const allContests = useMemo(() => [...CONTESTS, ...userContests], [userContests]);
 
   const chartData = useMemo(() => {
-    return [
-      ...simulados.map(s => ({
+    const list: any[] = [];
+    
+    // Simulados Gerais (Simple simulados)
+    if (chartContestId === 'all' || chartContestId === 'geral') {
+      list.push(...simulados.map(s => ({
         name: s.title || 'Simulado',
         score: Number(s.score || 0),
         target: Number(s.target_score || 80),
         date: s.date || s.created_at || new Date().toISOString()
-      })),
-      ...detailedSimulados.map(s => ({
-        name: s.title || 'Simulado Detalhado',
-        score: Number(s.totalScore || 0),
-        target: Number(allContests.find(c => c.id === s.contestId)?.cutoffScore || 80),
-        date: s.date || s.created_at || new Date().toISOString()
-      }))
-    ].filter(d => {
+      })));
+    }
+
+    // Detailed/Contest simulados
+    if (chartContestId !== 'geral') {
+      list.push(...detailedSimulados
+        .filter(s => chartContestId === 'all' || s.contestId === chartContestId)
+        .map(s => ({
+          name: s.title || 'Simulado Detalhado',
+          score: Number(s.totalScore || 0),
+          target: Number(allContests.find(c => c.id === s.contestId)?.cutoffScore || 80),
+          date: s.date || s.created_at || new Date().toISOString()
+        }))
+      );
+    }
+
+    return list.filter(d => {
       const time = new Date(d.date).getTime();
       return !isNaN(time);
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [simulados, detailedSimulados, allContests]);
+  }, [simulados, detailedSimulados, allContests, chartContestId]);
+
+  const chartMax = useMemo(() => {
+    if (chartData.length === 0) return 100;
+    const maxScore = Math.max(...chartData.map(d => d.score), 0);
+    const maxTarget = Math.max(...chartData.map(d => d.target), 0);
+    const peak = Math.max(maxScore, maxTarget, 100);
+    return Math.ceil(peak / 10) * 10;
+  }, [chartData]);
 
   // Debug log for chart data
   useEffect(() => {
@@ -1681,7 +1702,11 @@ export default function App() {
 
   const addContest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newContest.name.trim() || !user) return;
+    if (!newContest.name.trim()) return;
+    if (!user) {
+      addToast("⚠️ Você precisa estar logado para cadastrar concursos personalizados.", "warning");
+      return;
+    }
     
     try {
       const { error } = await supabase.from('user_contests').insert({
@@ -2867,8 +2892,21 @@ export default function App() {
             </Panel>
 
             <Panel className="md:col-span-2 flex flex-col">
-              <div className="px-4 py-3 border-b-2 border-quest-gold-dark/30 flex items-center gap-2 text-quest-gold text-sm font-serif tracking-widest uppercase bg-black/20">
-                <TrendingUp size={16} /> EVOLUÇÃO DO GUERREIRO
+              <div className="px-4 py-3 border-b-2 border-quest-gold-dark/30 flex items-center justify-between bg-black/20">
+                <div className="flex items-center gap-2 text-quest-gold text-sm font-serif tracking-widest uppercase">
+                  <TrendingUp size={16} /> EVOLUÇÃO DO GUERREIRO
+                </div>
+                <select 
+                  value={chartContestId}
+                  onChange={e => setChartContestId(e.target.value)}
+                  className="bg-transparent border border-quest-gold-dark/50 text-quest-gold text-xs p-1 rounded font-serif"
+                >
+                  <option value="all" className="bg-quest-panel">Todos os Concursos</option>
+                  <option value="geral" className="bg-quest-panel">Simulados Gerais</option>
+                  {allContests.map(c => (
+                    <option key={c.id} value={c.id} className="bg-quest-panel">{c.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex-1 p-4 min-h-[300px] h-[300px] relative">
                 {chartData.length > 0 ? (
@@ -2876,7 +2914,7 @@ export default function App() {
                     <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                       <XAxis dataKey="name" stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} />
-                      <YAxis stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                      <YAxis stroke="#8c7335" tick={{ fill: '#a39b8f', fontSize: 12, fontFamily: 'MedievalSharp' }} axisLine={false} tickLine={false} domain={[0, chartMax]} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#1a1814', borderColor: '#8c7335', color: '#d4af37', fontFamily: 'MedievalSharp' }}
                         itemStyle={{ color: '#d4af37' }}
